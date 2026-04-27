@@ -243,18 +243,23 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               {/* 揭晓时左下角对比卡 (可折叠) */}
               {reveal && (
                 cardCollapsed ? (
-                  <button
-                    type="button"
-                    onClick={() => setCardCollapsed(false)}
-                    className="absolute bottom-16 left-3 z-20 paper-card px-3 py-2 flex items-center gap-2 animate-scale-in shadow-xl hover:bg-accent/10 transition-colors"
-                    title="展开结果"
-                  >
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-bold ink-text tabular-nums">
-                      {Math.round(reveal.score / 10)}<span className="text-xs text-muted-foreground font-normal">/100</span>
-                    </span>
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  </button>
+                  <div className="absolute bottom-16 left-3 z-20 flex items-center gap-2 animate-scale-in">
+                    <button
+                      type="button"
+                      onClick={() => setCardCollapsed(false)}
+                      className="paper-card px-3 py-2 flex items-center gap-2 shadow-xl hover:bg-accent/10 transition-colors"
+                      title="展开结果"
+                    >
+                      <Target className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-bold ink-text tabular-nums">
+                        {Math.round(reveal.score / 10)}<span className="text-xs text-muted-foreground font-normal">/100</span>
+                      </span>
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <Button onClick={next} className="seal-btn h-9 text-sm shadow-xl">
+                      {round + 1 >= scenes.length ? '查看结果' : '下一回合 →'}
+                    </Button>
+                  </div>
                 ) : (
                   <div className="absolute bottom-16 left-3 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
                     <div className="flex items-baseline justify-between mb-2 gap-2">
