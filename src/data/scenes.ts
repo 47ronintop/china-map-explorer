@@ -1,4 +1,15 @@
-// 中国历史场景数据 (占位图，后续可替换为真实图片/AI生成)
+// 中国历史场景数据
+import imgChanganTang from '@/assets/scenes/changan-tang.jpg';
+import imgKaifengSong from '@/assets/scenes/kaifeng-song.jpg';
+import imgForbiddenCity from '@/assets/scenes/forbidden-city.jpg';
+import imgXianTerracotta from '@/assets/scenes/xian-terracotta.jpg';
+import imgDunhuangMogao from '@/assets/scenes/dunhuang-mogao.jpg';
+import imgGreatWall from '@/assets/scenes/great-wall.jpg';
+import imgShanghaiBund from '@/assets/scenes/shanghai-bund.jpg';
+import imgHangzhouWestlake from '@/assets/scenes/hangzhou-westlake.jpg';
+import imgLuoyangHan from '@/assets/scenes/luoyang-han.jpg';
+import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
+
 export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
 
 export interface Scene {
@@ -21,12 +32,6 @@ export const ERAS: Record<Era, { label: string; range: string }> = {
   'tang-song': { label: '唐宋', range: '618 - 1279' },
   ancient: { label: '秦汉及更早', range: '公元前 221 之前 - 公元 220' },
 };
-
-// SVG 占位图生成器
-const ph = (label: string, hue: number) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},45%,75%)"/><stop offset="1" stop-color="hsl(${hue + 20},35%,40%)"/></linearGradient></defs><rect width="1200" height="800" fill="url(%23g)"/><g fill="hsl(${hue},30%,20%)" opacity="0.6" font-family="serif"><text x="600" y="380" text-anchor="middle" font-size="72" font-weight="700">${label}</text><text x="600" y="450" text-anchor="middle" font-size="28" opacity="0.7">场景占位图</text></g><g stroke="hsl(${hue},30%,25%)" stroke-width="2" fill="none" opacity="0.3"><path d="M0,600 Q300,500 600,580 T1200,560 L1200,800 L0,800 Z"/><path d="M0,650 Q400,560 800,620 T1200,610 L1200,800 L0,800 Z"/></g></svg>`
-  )}`;
 
 export const SCENES: Scene[] = [
   {
