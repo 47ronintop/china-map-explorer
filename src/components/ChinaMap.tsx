@@ -75,10 +75,11 @@ export default function ChinaMap({
         zoomControl={true}
         worldCopyJump={false}
       >
-        {/* 在线瓦片底图：CartoDB Voyager（中文友好、清晰、含河流城市道路） */}
+        {/* 在线瓦片底图：高德地图（中文标签，含城市/河流/道路） */}
         <TileLayer
-          attribution='&copy; OpenStreetMap, &copy; CartoDB'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; AutoNavi'
+          url="https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}"
+          subdomains={['1', '2', '3', '4']}
         />
 
         <ClickHandler enabled={interactive && !truth} onClick={(lng, lat) => onGuess([lng, lat])} />
