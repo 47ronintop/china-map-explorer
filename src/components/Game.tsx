@@ -153,7 +153,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
       </div>
 
       {/* 底部控制 */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 md:p-6 space-y-3">
+      <div className={`absolute bottom-0 left-0 right-0 z-20 p-4 md:p-6 space-y-3 ${reveal ? 'pointer-events-none opacity-0' : ''}`}>
         {/* 年份滑块 */}
         {!reveal && (
           <div className="paper-card p-4 max-w-3xl mx-auto">
@@ -175,32 +175,6 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           </div>
         )}
 
-        {/* 揭晓面板 */}
-        {reveal && (
-          <div className="paper-card p-5 max-w-3xl mx-auto">
-            <div className="flex items-baseline justify-between mb-3">
-              <h3 className="text-2xl font-bold ink-text">{reveal.scene.title}</h3>
-              <div className="text-3xl font-bold text-primary">+{reveal.score}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">真实地点</p>
-                <p className="ink-text font-semibold">{reveal.scene.locationName}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  距离误差：<span className="font-semibold text-foreground">{reveal.distanceKm.toFixed(0)} 公里</span>
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">真实年份</p>
-                <p className="ink-text font-semibold">{formatYear(reveal.scene.year)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  年份误差：<span className="font-semibold text-foreground">{reveal.yearError} 年</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="flex gap-3 max-w-3xl mx-auto">
           <Button
             variant="outline"
@@ -217,26 +191,20 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
             <MapIcon className="w-4 h-4 mr-2" />
             {guessLoc ? '已选定地点' : '在地图上选地点'}
           </Button>
-          {reveal ? (
-            <Button onClick={next} className="seal-btn flex-1">
-              {round + 1 >= scenes.length ? '查看结果' : '下一回合'}
-            </Button>
-          ) : (
-            <Button
-              onClick={submit}
-              disabled={!guessLoc}
-              className="seal-btn flex-1"
-            >
-              提交答案
-            </Button>
-          )}
+          <Button
+            onClick={submit}
+            disabled={!guessLoc}
+            className="seal-btn flex-1"
+          >
+            提交答案
+          </Button>
         </div>
       </div>
 
       {/* 地图弹层 */}
       {(showMap || reveal) && (
-        <div className="fixed inset-0 z-30 bg-foreground/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="paper-card w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-30 bg-foreground/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="paper-card w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden relative">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div>
                 <h3 className="text-lg font-bold ink-text">
@@ -248,23 +216,70 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                   </p>
                 )}
               </div>
-              {!reveal && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowMap(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (reveal) next();
+                  else setShowMap(false);
+                }}
+                title={reveal ? '关闭并继续' : '关闭'}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="relative flex-1 w-full">
+              <ChinaMap
+                guess={guessLoc}
+                onGuess={loc => setGuessLoc(loc)}
+                truth={reveal ? reveal.scene.location : null}
+                interactive={!reveal}
+                className="absolute inset-0 w-full h-full"
+              />
+
+              {/* 揭晓时右上角对比卡 */}
+              {reveal && (
+                <div className="absolute top-3 left-3 md:left-auto md:right-14 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h4 className="text-base font-bold ink-text truncate pr-2">{reveal.scene.title}</h4>
+                    <div className="text-2xl font-bold text-primary shrink-0">+{reveal.score}</div>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-start gap-2">
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-muted-foreground">你的猜测</p>
+                        <p className="ink-text">
+                          {guessLoc ? `${guessLoc[1].toFixed(2)}°N, ${guessLoc[0].toFixed(2)}°E` : '未选'} · {formatYear(reveal.guessYear)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="inline-block w-2 h-2 rounded-full bg-[hsl(0,65%,42%)] mt-1.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-muted-foreground">真实答案</p>
+                        <p className="ink-text">{reveal.scene.locationName} · {formatYear(reveal.scene.year)}</p>
+                      </div>
+                    </div>
+                    <div className="border-t border-border pt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-muted-foreground">距离差</p>
+                        <p className="font-semibold ink-text">{reveal.distanceKm.toFixed(0)} 公里</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">年份差</p>
+                        <p className="font-semibold ink-text">{reveal.yearError} 年</p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={next} className="seal-btn w-full mt-3 h-9 text-sm">
+                    {round + 1 >= scenes.length ? '查看结果' : '下一回合 →'}
+                  </Button>
+                </div>
               )}
             </div>
-            <ChinaMap
-              guess={guessLoc}
-              onGuess={loc => setGuessLoc(loc)}
-              truth={reveal ? reveal.scene.location : null}
-              interactive={!reveal}
-              className="flex-1 w-full"
-            />
+
             {!reveal && (
               <div className="p-3 flex gap-2 border-t border-border">
                 <Button variant="outline" onClick={() => setShowMap(false)} className="flex-1">
