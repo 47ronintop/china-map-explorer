@@ -12,7 +12,7 @@ import {
   type Scene,
   type Era,
 } from '@/data/scenes';
-import { Map as MapIcon, X, Clock, Target } from 'lucide-react';
+import { Map as MapIcon, X, Clock, Target, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface GameProps {
   eraFilter: Era | 'all';
@@ -48,6 +48,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
   const [showMap, setShowMap] = useState(false);
   const [reveal, setReveal] = useState<RoundResult | null>(null);
   const [results, setResults] = useState<RoundResult[]>([]);
+  const [cardCollapsed, setCardCollapsed] = useState(false);
 
   const scene = scenes[round];
 
