@@ -12,7 +12,8 @@ import {
   type Scene,
   type Era,
 } from '@/data/scenes';
-import { Map as MapIcon, X, Clock, Target, ChevronDown, ChevronUp } from 'lucide-react';
+import { Map as MapIcon, X, Clock, Target, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
+import { nearestCity } from '@/data/cities';
 
 interface GameProps {
   eraFilter: Era | 'all';
@@ -313,11 +314,16 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
               {/* 选点时右下角浮动操作面板 */}
               {!reveal && (
-                <div className="absolute bottom-3 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
-                  <p className="text-xs text-muted-foreground">
-                    {guessLoc
-                      ? `已选：${guessLoc[1].toFixed(2)}°N, ${guessLoc[0].toFixed(2)}°E`
-                      : '点击地图选择地点'}
+                <div className="absolute bottom-8 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                    {guessLoc ? (
+                      <span className="ink-text font-medium truncate">
+                        已选：{nearestCity(guessLoc[0], guessLoc[1]).name}
+                      </span>
+                    ) : (
+                      <span>点击地图选择地点</span>
+                    )}
                   </p>
                   <div className="flex gap-2">
                     <Button
