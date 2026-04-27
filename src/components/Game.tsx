@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import ChinaMap from './ChinaMap';
+import { PanoramaViewer } from './PanoramaViewer';
 import {
   SCENES,
   ROUNDS_PER_GAME,
@@ -118,13 +119,17 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* 场景图 全屏背景 */}
-      <img
-        src={scene.image}
-        alt={scene.title}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40" />
+      {/* 场景图 全屏背景 — 优先使用 360° 全景 */}
+      {scene.panorama ? (
+        <PanoramaViewer src={scene.panorama} className="absolute inset-0 w-full h-full" />
+      ) : (
+        <img
+          src={scene.image}
+          alt={scene.title}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
 
       {/* 顶部 HUD */}
       <div className="relative z-10 flex items-center justify-between p-4 md:p-6">
