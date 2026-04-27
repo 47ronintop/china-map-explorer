@@ -240,10 +240,12 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
               {/* 揭晓时右上角对比卡 */}
               {reveal && (
-                <div className="absolute top-3 left-3 md:left-auto md:right-14 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
+                <div className="absolute bottom-3 left-3 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
                   <div className="flex items-baseline justify-between mb-2">
                     <h4 className="text-base font-bold ink-text truncate pr-2">{reveal.scene.title}</h4>
-                    <div className="text-2xl font-bold text-primary shrink-0">+{reveal.score}</div>
+                    <div className="text-2xl font-bold text-primary shrink-0 tabular-nums">
+                      {Math.round(reveal.score / 10)}<span className="text-sm text-muted-foreground font-normal">/100</span>
+                    </div>
                   </div>
                   <div className="space-y-2 text-xs">
                     <div className="flex items-start gap-2">
