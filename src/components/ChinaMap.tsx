@@ -1,12 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  ZoomableGroup,
-  Marker,
-} from 'react-simple-maps';
-import { CITIES } from '@/data/cities';
+import { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface ChinaMapProps {
   guess: [number, number] | null; // [lng, lat]
@@ -16,22 +11,42 @@ interface ChinaMapProps {
   className?: string;
 }
 
-// 经验公式：把 SVG 像素 → 经纬度（基于 mercator 投影 + 当前 zoom/center）
-// 我们改用 react-simple-maps 提供的 projection 实例，通过 ref 反算。
-// 这里采用更直接的办法：用 d3-geo 的 mercator 投影。
-import { geoMercator } from 'd3-geo';
+// 自定义 marker 图标（避免 leaflet 默认 png 资源问题）
+const guessIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:hsl(var(--primary));border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4);"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+const truthIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:20px;height:20px;border-radius:50%;background:hsl(0,65%,42%);border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4);"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
 
-const WIDTH = 800;
-const HEIGHT = 600;
-const PROJECTION_CONFIG = {
-  scale: 600,
-  center: [104, 36] as [number, number],
-};
+function ClickHandler({ onClick, enabled }: { onClick: (lng: number, lat: number) => void; enabled: boolean }) {
+  useMapEvents({
+    click(e) {
+      if (!enabled) return;
+      onClick(e.latlng.lng, e.latlng.lat);
+    },
+  });
+  return null;
+}
 
-const projection = geoMercator()
-  .center(PROJECTION_CONFIG.center)
-  .scale(PROJECTION_CONFIG.scale)
-  .translate([WIDTH / 2, HEIGHT / 2]);
+function FocusOnReveal({ guess, truth }: { guess: [number, number] | null; truth: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!guess || !truth) return;
+    const bounds = L.latLngBounds([
+      [guess[1], guess[0]],
+      [truth[1], truth[0]],
+    ]);
+    map.flyToBounds(bounds, { padding: [60, 60], duration: 0.9, maxZoom: 9 });
+  }, [guess, truth, map]);
+  return null;
+}
 
 export default function ChinaMap({
   guess,
@@ -40,303 +55,51 @@ export default function ChinaMap({
   interactive = true,
   className,
 }: ChinaMapProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ coordinates: [number, number]; zoom: number }>({
-    coordinates: [104, 36],
-    zoom: 1,
-  });
-  const animRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // 揭晓时：平滑动画把镜头聚焦到 guess + truth 两点
-  useEffect(() => {
-    if (!truth || !guess) return;
-    const centerLng = (truth[0] + guess[0]) / 2;
-    const centerLat = (truth[1] + guess[1]) / 2;
-    // 估算需要的 zoom：根据两点距离决定
-    const dLng = Math.abs(truth[0] - guess[0]);
-    const dLat = Math.abs(truth[1] - guess[1]);
-    const span = Math.max(dLng, dLat * 1.4);
-    let targetZoom = 1;
-    if (span < 1) targetZoom = 6;
-    else if (span < 3) targetZoom = 5;
-    else if (span < 6) targetZoom = 4;
-    else if (span < 12) targetZoom = 3;
-    else if (span < 24) targetZoom = 2;
-    else targetZoom = 1.4;
-
-    const start = performance.now();
-    const from = { ...pos };
-    const target = { coordinates: [centerLng, centerLat] as [number, number], zoom: targetZoom };
-    const dur = 900;
-    const ease = (t: number) => 1 - Math.pow(1 - t, 3);
-
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / dur);
-      const k = ease(t);
-      setPos({
-        coordinates: [
-          from.coordinates[0] + (target.coordinates[0] - from.coordinates[0]) * k,
-          from.coordinates[1] + (target.coordinates[1] - from.coordinates[1]) * k,
-        ],
-        zoom: from.zoom + (target.zoom - from.zoom) * k,
-      });
-      if (t < 1) animRef.current = requestAnimationFrame(tick);
-    };
-    animRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [truth, guess]);
-
-  // 把经纬度投影到当前 SVG 坐标，然后再考虑 ZoomableGroup 的 transform。
-  // ZoomableGroup 的 transform：translate(W/2,H/2) scale(zoom) translate(-projX(c), -projY(c))
-  // 所以 一个地理坐标 (lng,lat) 在容器中的最终像素位置：
-  // sx = W/2 + zoom * (projX(p) - projX(c))
-  // sy = H/2 + zoom * (projY(p) - projY(c))
-  const projectToScreen = useCallback(
-    (lng: number, lat: number, rectW: number, rectH: number) => {
-      const [px, py] = projection([lng, lat])!;
-      const [cx, cy] = projection(pos.coordinates)!;
-      const sx = WIDTH / 2 + pos.zoom * (px - cx);
-      const sy = HEIGHT / 2 + pos.zoom * (py - cy);
-      // SVG 用 preserveAspectRatio meet → 等比缩放并居中
-      const scale = Math.min(rectW / WIDTH, rectH / HEIGHT);
-      const offsetX = (rectW - WIDTH * scale) / 2;
-      const offsetY = (rectH - HEIGHT * scale) / 2;
-      return {
-        x: offsetX + sx * scale,
-        y: offsetY + sy * scale,
-      };
-    },
-    [pos]
-  );
-
-  const handleClick = useCallback(
-    (geoCoords: [number, number]) => {
-      if (!interactive) return;
-      onGuess(geoCoords);
-    },
-    [interactive, onGuess]
-  );
-
-  // 揭晓时计算屏幕坐标用于画线
-  const [screenPositions, setScreenPositions] = useState<{
-    guess: { x: number; y: number } | null;
-    truth: { x: number; y: number } | null;
-    rect: { w: number; h: number };
-  }>({ guess: null, truth: null, rect: { w: 0, h: 0 } });
-
-  useEffect(() => {
-    if (!wrapperRef.current) return;
-    const update = () => {
-      const rect = wrapperRef.current!.getBoundingClientRect();
-      setScreenPositions({
-        guess: guess ? projectToScreen(guess[0], guess[1], rect.width, rect.height) : null,
-        truth: truth ? projectToScreen(truth[0], truth[1], rect.width, rect.height) : null,
-        rect: { w: rect.width, h: rect.height },
-      });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(wrapperRef.current);
-    return () => ro.disconnect();
-  }, [guess, truth, projectToScreen]);
+  // 中国大致中心
+  const initialCenter: [number, number] = useMemo(() => [36, 104], []);
 
   return (
     <div
-      ref={wrapperRef}
+      ref={containerRef}
       className={`relative bg-[hsl(var(--paper))] ${className ?? ''}`}
       style={{ cursor: interactive ? 'crosshair' : 'default' }}
     >
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={PROJECTION_CONFIG}
-        width={WIDTH}
-        height={HEIGHT}
-        style={{ width: '100%', height: '100%' }}
+      <MapContainer
+        center={initialCenter}
+        zoom={4}
+        minZoom={3}
+        maxZoom={17}
+        style={{ width: '100%', height: '100%', background: 'hsl(var(--paper))' }}
+        zoomControl={true}
+        worldCopyJump={false}
       >
-        <ZoomableGroup
-          zoom={pos.zoom}
-          center={pos.coordinates}
-          minZoom={1}
-          maxZoom={6}
-          onMoveEnd={(p) => setPos(p)}
-        >
-          <Geographies geography="/china.json">
-            {({ geographies }) =>
-              geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  onClick={(evt: React.MouseEvent<SVGPathElement>) => {
-                    // 用 d3 投影反算点击位置的经纬度
-                    const svg = (evt.target as SVGPathElement).ownerSVGElement;
-                    if (!svg) return;
-                    const pt = svg.createSVGPoint();
-                    pt.x = evt.clientX;
-                    pt.y = evt.clientY;
-                    const ctm = svg.getScreenCTM();
-                    if (!ctm) return;
-                    const local = pt.matrixTransform(ctm.inverse());
-                    // local 是在 SVG viewBox 坐标里（已包含 ZoomableGroup transform）
-                    // 反推：(local.x - W/2)/zoom + projX(center) = projX(point)
-                    const [cx, cy] = projection(pos.coordinates)!;
-                    const px = (local.x - WIDTH / 2) / pos.zoom + cx;
-                    const py = (local.y - HEIGHT / 2) / pos.zoom + cy;
-                    const inv = projection.invert!([px, py]);
-                    if (inv) handleClick([inv[0], inv[1]]);
-                  }}
-                  style={{
-                    default: {
-                      fill: 'hsl(var(--muted))',
-                      stroke: 'hsl(var(--border))',
-                      strokeWidth: 0.5,
-                      outline: 'none',
-                    },
-                    hover: {
-                      fill: 'hsl(var(--accent) / 0.3)',
-                      stroke: 'hsl(var(--border))',
-                      strokeWidth: 0.5,
-                      outline: 'none',
-                      cursor: interactive ? 'crosshair' : 'default',
-                    },
-                    pressed: {
-                      fill: 'hsl(var(--accent) / 0.5)',
-                      outline: 'none',
-                    },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
+        {/* 在线瓦片底图：CartoDB Voyager（中文友好、清晰、含河流城市道路） */}
+        <TileLayer
+          attribution='&copy; OpenStreetMap, &copy; CartoDB'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
 
-          {/* 主要河流 */}
-          <Geographies geography="/china-rivers.json">
-            {({ geographies }) =>
-              geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  style={{
-                    default: {
-                      fill: 'none',
-                      stroke: 'hsl(205, 60%, 50%)',
-                      strokeWidth: 1.2 / pos.zoom,
-                      strokeLinejoin: 'round',
-                      strokeLinecap: 'round',
-                      outline: 'none',
-                      pointerEvents: 'none',
-                    },
-                    hover: { fill: 'none', outline: 'none', pointerEvents: 'none' },
-                    pressed: { fill: 'none', outline: 'none', pointerEvents: 'none' },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
+        <ClickHandler enabled={interactive && !truth} onClick={(lng, lat) => onGuess([lng, lat])} />
 
-          {/* 城市标记：根据 zoom 分级显示 */}
-          {CITIES.map(([rawName, lng, lat], i) => {
-            const isMajor =
-              ['北京', '天津', '上海', '重庆'].includes(rawName) ||
-              (rawName.includes('·') &&
-                [
-                  '石家庄', '太原', '呼和浩特', '沈阳', '长春', '哈尔滨', '南京',
-                  '杭州', '合肥', '福州', '南昌', '济南', '郑州', '武汉', '长沙',
-                  '广州', '南宁', '海口', '成都', '贵阳', '昆明', '拉萨', '西安',
-                  '兰州', '西宁', '银川', '乌鲁木齐', '台北', '香港', '澳门',
-                ].some((c) => rawName.startsWith(c)));
-            // 按 zoom 决定是否显示
-            if (!isMajor && pos.zoom < 2.5) return null;
-            if (pos.zoom < 1.5 && !isMajor) return null;
-            const display = rawName.split('·')[0];
-            const r = isMajor ? 1.6 / pos.zoom : 1.0 / pos.zoom;
-            const fontSize = (isMajor ? 9 : 7) / pos.zoom;
-            return (
-              <Marker key={`city-${i}`} coordinates={[lng, lat]}>
-                <circle
-                  r={r}
-                  fill={isMajor ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
-                  style={{ pointerEvents: 'none' }}
-                />
-                <text
-                  x={r + 1.5 / pos.zoom}
-                  y={fontSize / 3}
-                  style={{
-                    fontSize,
-                    fill: 'hsl(var(--foreground))',
-                    fontFamily: 'inherit',
-                    pointerEvents: 'none',
-                    paintOrder: 'stroke',
-                    stroke: 'hsl(var(--paper))',
-                    strokeWidth: 2.5 / pos.zoom,
-                    strokeLinejoin: 'round',
-                  }}
-                >
-                  {display}
-                </text>
-              </Marker>
-            );
-          })}
-        </ZoomableGroup>
-      </ComposableMap>
-
-      {/* Marker overlay (绝对定位，避免随 ZoomableGroup transform 抖动) */}
-      <svg
-        className="pointer-events-none absolute inset-0 w-full h-full"
-        viewBox={`0 0 ${screenPositions.rect.w} ${screenPositions.rect.h}`}
-        preserveAspectRatio="none"
-      >
-        {screenPositions.guess && screenPositions.truth && (
-          <line
-            x1={screenPositions.guess.x}
-            y1={screenPositions.guess.y}
-            x2={screenPositions.truth.x}
-            y2={screenPositions.truth.y}
-            stroke="hsl(0,65%,42%)"
-            strokeWidth={2}
-            strokeDasharray="6 8"
+        {guess && (
+          <Marker position={[guess[1], guess[0]]} icon={guessIcon} interactive={false} />
+        )}
+        {truth && (
+          <Marker position={[truth[1], truth[0]]} icon={truthIcon} interactive={false} />
+        )}
+        {guess && truth && (
+          <Polyline
+            positions={[
+              [guess[1], guess[0]],
+              [truth[1], truth[0]],
+            ]}
+            pathOptions={{ color: 'hsl(0,65%,42%)', weight: 2, dashArray: '6 8' }}
           />
         )}
-        {screenPositions.guess && (
-          <g transform={`translate(${screenPositions.guess.x},${screenPositions.guess.y})`}>
-            <circle r={8} fill="hsl(var(--primary))" stroke="white" strokeWidth={2} />
-          </g>
-        )}
-        {screenPositions.truth && (
-          <g transform={`translate(${screenPositions.truth.x},${screenPositions.truth.y})`}>
-            <circle r={9} fill="hsl(0,65%,42%)" stroke="white" strokeWidth={3} />
-          </g>
-        )}
-      </svg>
-
-      {/* 缩放按钮 */}
-      <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
-        <button
-          type="button"
-          onClick={() => setPos((p) => ({ ...p, zoom: Math.min(p.zoom * 1.5, 6) }))}
-          className="w-8 h-8 bg-card border border-border rounded shadow text-lg font-bold hover:bg-accent/20"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => setPos((p) => ({ ...p, zoom: Math.max(p.zoom / 1.5, 1) }))}
-          className="w-8 h-8 bg-card border border-border rounded shadow text-lg font-bold hover:bg-accent/20"
-        >
-          −
-        </button>
-        <button
-          type="button"
-          onClick={() => setPos({ coordinates: [104, 36], zoom: 1 })}
-          className="w-8 h-8 bg-card border border-border rounded shadow text-xs hover:bg-accent/20"
-          title="重置"
-        >
-          ⟲
-        </button>
-      </div>
+        {truth && <FocusOnReveal guess={guess} truth={truth} />}
+      </MapContainer>
     </div>
   );
 }
