@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import ChinaMap from './ChinaMap';
+import { PanoramaViewer } from './PanoramaViewer';
 import {
   SCENES,
   ROUNDS_PER_GAME,
