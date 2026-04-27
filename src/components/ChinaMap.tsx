@@ -5,7 +5,6 @@ import {
   Geography,
   ZoomableGroup,
   Marker,
-  Line,
 } from 'react-simple-maps';
 import { CITIES } from '@/data/cities';
 
