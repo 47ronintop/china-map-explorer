@@ -1,4 +1,15 @@
-// 中国历史场景数据 (占位图，后续可替换为真实图片/AI生成)
+// 中国历史场景数据
+import imgChanganTang from '@/assets/scenes/changan-tang.jpg';
+import imgKaifengSong from '@/assets/scenes/kaifeng-song.jpg';
+import imgForbiddenCity from '@/assets/scenes/forbidden-city.jpg';
+import imgXianTerracotta from '@/assets/scenes/xian-terracotta.jpg';
+import imgDunhuangMogao from '@/assets/scenes/dunhuang-mogao.jpg';
+import imgGreatWall from '@/assets/scenes/great-wall.jpg';
+import imgShanghaiBund from '@/assets/scenes/shanghai-bund.jpg';
+import imgHangzhouWestlake from '@/assets/scenes/hangzhou-westlake.jpg';
+import imgLuoyangHan from '@/assets/scenes/luoyang-han.jpg';
+import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
+
 export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
 
 export interface Scene {
@@ -22,18 +33,12 @@ export const ERAS: Record<Era, { label: string; range: string }> = {
   ancient: { label: '秦汉及更早', range: '公元前 221 之前 - 公元 220' },
 };
 
-// SVG 占位图生成器
-const ph = (label: string, hue: number) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},45%,75%)"/><stop offset="1" stop-color="hsl(${hue + 20},35%,40%)"/></linearGradient></defs><rect width="1200" height="800" fill="url(%23g)"/><g fill="hsl(${hue},30%,20%)" opacity="0.6" font-family="serif"><text x="600" y="380" text-anchor="middle" font-size="72" font-weight="700">${label}</text><text x="600" y="450" text-anchor="middle" font-size="28" opacity="0.7">场景占位图</text></g><g stroke="hsl(${hue},30%,25%)" stroke-width="2" fill="none" opacity="0.3"><path d="M0,600 Q300,500 600,580 T1200,560 L1200,800 L0,800 Z"/><path d="M0,650 Q400,560 800,620 T1200,610 L1200,800 L0,800 Z"/></g></svg>`
-  )}`;
-
 export const SCENES: Scene[] = [
   {
     id: 'changan-tang',
     title: '长安城朱雀大街',
     description: '盛唐长安，朱雀大街熙攘，胡商汉客往来如织。',
-    image: ph('长安·朱雀大街', 30),
+    image: imgChanganTang,
     location: [108.94, 34.34],
     locationName: '陕西西安',
     year: 750,
@@ -44,7 +49,7 @@ export const SCENES: Scene[] = [
     id: 'kaifeng-song',
     title: '汴京虹桥',
     description: '北宋东京汴梁，虹桥之上车马喧腾，《清明上河图》所绘之景。',
-    image: ph('汴京·虹桥', 25),
+    image: imgKaifengSong,
     location: [114.35, 34.8],
     locationName: '河南开封',
     year: 1120,
@@ -55,7 +60,7 @@ export const SCENES: Scene[] = [
     id: 'forbidden-city',
     title: '紫禁城太和殿',
     description: '明永乐年间建成的紫禁城，皇权象征。',
-    image: ph('紫禁城·太和殿', 0),
+    image: imgForbiddenCity,
     location: [116.397, 39.918],
     locationName: '北京',
     year: 1420,
@@ -66,7 +71,7 @@ export const SCENES: Scene[] = [
     id: 'xian-terracotta',
     title: '秦始皇陵兵马俑',
     description: '秦始皇陵东侧地下军阵，千人千面。',
-    image: ph('秦俑·军阵', 35),
+    image: imgXianTerracotta,
     location: [109.27, 34.38],
     locationName: '陕西临潼',
     year: -210,
@@ -77,7 +82,7 @@ export const SCENES: Scene[] = [
     id: 'dunhuang-mogao',
     title: '敦煌莫高窟',
     description: '丝路重镇，千年壁画与彩塑荟萃。',
-    image: ph('莫高窟·飞天', 40),
+    image: imgDunhuangMogao,
     location: [94.81, 40.04],
     locationName: '甘肃敦煌',
     year: 700,
@@ -88,7 +93,7 @@ export const SCENES: Scene[] = [
     id: 'great-wall',
     title: '居庸关长城',
     description: '明代加固之雄关，京师屏障。',
-    image: ph('居庸关·长城', 200),
+    image: imgGreatWall,
     location: [116.07, 40.29],
     locationName: '北京昌平',
     year: 1500,
@@ -99,7 +104,7 @@ export const SCENES: Scene[] = [
     id: 'shanghai-bund',
     title: '上海外滩',
     description: '万国建筑博览群，民国十里洋场。',
-    image: ph('上海·外滩', 210),
+    image: imgShanghaiBund,
     location: [121.49, 31.24],
     locationName: '上海',
     year: 1935,
@@ -110,7 +115,7 @@ export const SCENES: Scene[] = [
     id: 'hangzhou-westlake',
     title: '杭州西湖',
     description: '南宋偏安，"暖风熏得游人醉"。',
-    image: ph('西湖·苏堤', 130),
+    image: imgHangzhouWestlake,
     location: [120.15, 30.25],
     locationName: '浙江杭州',
     year: 1180,
@@ -121,7 +126,7 @@ export const SCENES: Scene[] = [
     id: 'luoyang-han',
     title: '东汉洛阳城',
     description: '东汉都城洛阳，太学云集。',
-    image: ph('洛阳·汉城', 50),
+    image: imgLuoyangHan,
     location: [112.46, 34.62],
     locationName: '河南洛阳',
     year: 100,
@@ -132,7 +137,7 @@ export const SCENES: Scene[] = [
     id: 'lijiang-old',
     title: '丽江古城',
     description: '南宋纳西木氏所建，茶马古道枢纽。',
-    image: ph('丽江·古城', 150),
+    image: imgLijiangOld,
     location: [100.23, 26.87],
     locationName: '云南丽江',
     year: 1450,
