@@ -43,6 +43,50 @@ export default function ChinaMap({
     coordinates: [104, 36],
     zoom: 1,
   });
+  const animRef = useRef<number | null>(null);
+
+  // 揭晓时：平滑动画把镜头聚焦到 guess + truth 两点
+  useEffect(() => {
+    if (!truth || !guess) return;
+    const centerLng = (truth[0] + guess[0]) / 2;
+    const centerLat = (truth[1] + guess[1]) / 2;
+    // 估算需要的 zoom：根据两点距离决定
+    const dLng = Math.abs(truth[0] - guess[0]);
+    const dLat = Math.abs(truth[1] - guess[1]);
+    const span = Math.max(dLng, dLat * 1.4);
+    let targetZoom = 1;
+    if (span < 1) targetZoom = 6;
+    else if (span < 3) targetZoom = 5;
+    else if (span < 6) targetZoom = 4;
+    else if (span < 12) targetZoom = 3;
+    else if (span < 24) targetZoom = 2;
+    else targetZoom = 1.4;
+
+    const start = performance.now();
+    const from = { ...pos };
+    const target = { coordinates: [centerLng, centerLat] as [number, number], zoom: targetZoom };
+    const dur = 900;
+    const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const k = ease(t);
+      setPos({
+        coordinates: [
+          from.coordinates[0] + (target.coordinates[0] - from.coordinates[0]) * k,
+          from.coordinates[1] + (target.coordinates[1] - from.coordinates[1]) * k,
+        ],
+        zoom: from.zoom + (target.zoom - from.zoom) * k,
+      });
+      if (t < 1) animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [truth, guess]);
 
   // 把经纬度投影到当前 SVG 坐标，然后再考虑 ZoomableGroup 的 transform。
   // ZoomableGroup 的 transform：translate(W/2,H/2) scale(zoom) translate(-projX(c), -projY(c))

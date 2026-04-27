@@ -153,7 +153,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
       </div>
 
       {/* 底部控制 */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 md:p-6 space-y-3">
+      <div className={`absolute bottom-0 left-0 right-0 z-20 p-4 md:p-6 space-y-3 ${reveal ? 'pointer-events-none opacity-0' : ''}`}>
         {/* 年份滑块 */}
         {!reveal && (
           <div className="paper-card p-4 max-w-3xl mx-auto">
