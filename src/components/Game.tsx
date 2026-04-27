@@ -246,6 +246,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                     <div className="text-2xl font-bold text-primary shrink-0 tabular-nums">
                       {Math.round(reveal.score / 10)}<span className="text-sm text-muted-foreground font-normal">/100</span>
                     </div>
+                  </div>
                   <div className="space-y-2 text-xs">
                     <div className="flex items-start gap-2">
                       <span className="inline-block w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
