@@ -247,7 +247,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               {/* 揭晓时左下角对比卡 (可折叠) */}
               {reveal && (
                 cardCollapsed ? (
-                  <div className="absolute bottom-16 left-3 z-20 flex items-center gap-2 animate-scale-in">
+                  <div className="absolute bottom-16 left-3 z-[1100] flex items-center gap-2 animate-scale-in">
                     <button
                       type="button"
                       onClick={() => setCardCollapsed(false)}
@@ -265,7 +265,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                     </Button>
                   </div>
                 ) : (
-                  <div className="absolute bottom-16 left-3 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
+                  <div className="absolute bottom-16 left-3 z-[1100] paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
                     <div className="flex items-baseline justify-between mb-2 gap-2">
                       <h4 className="text-base font-bold ink-text truncate pr-1 flex-1">{reveal.scene.title}</h4>
                       <div className="text-2xl font-bold text-primary shrink-0 tabular-nums">
@@ -317,7 +317,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
               {/* 选点时右下角浮动操作面板 */}
               {!reveal && (
-                <div className="absolute bottom-16 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
+                <div className="absolute bottom-16 right-3 z-[1100] paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
                     {guessLoc ? (
