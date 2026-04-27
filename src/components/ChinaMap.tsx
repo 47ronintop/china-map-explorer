@@ -4,7 +4,10 @@ import {
   Geographies,
   Geography,
   ZoomableGroup,
+  Marker,
+  Line,
 } from 'react-simple-maps';
+import { CITIES } from '@/data/cities';
 
 interface ChinaMapProps {
   guess: [number, number] | null; // [lng, lat]
