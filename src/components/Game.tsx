@@ -314,7 +314,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
               {/* 选点时右下角浮动操作面板 */}
               {!reveal && (
-                <div className="absolute bottom-8 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
+                <div className="absolute bottom-16 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
                     {guessLoc ? (
@@ -329,10 +329,11 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowMap(false)}
+                      onClick={() => setGuessLoc(null)}
+                      disabled={!guessLoc}
                       className="flex-1"
                     >
-                      确认
+                      重置
                     </Button>
                     <Button
                       size="sm"
