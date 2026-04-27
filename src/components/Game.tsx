@@ -143,7 +143,10 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
 
         <div className="paper-card px-4 py-2 flex items-center gap-2">
           <Target className="w-4 h-4 text-accent" />
-          <span className="text-2xl font-bold ink-text tabular-nums">{totalScore}</span>
+          <span className="text-2xl font-bold ink-text tabular-nums">
+            {Math.round(totalScore / 10)}
+            <span className="text-xs text-muted-foreground font-normal">/{results.length * 100 || 100}</span>
+          </span>
         </div>
       </div>
 
