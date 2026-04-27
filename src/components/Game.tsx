@@ -12,7 +12,7 @@ import {
   type Scene,
   type Era,
 } from '@/data/scenes';
-import { Map as MapIcon, X, Clock, Target } from 'lucide-react';
+import { Map as MapIcon, X, Clock, Target, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface GameProps {
   eraFilter: Era | 'all';
@@ -48,6 +48,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
   const [showMap, setShowMap] = useState(false);
   const [reveal, setReveal] = useState<RoundResult | null>(null);
   const [results, setResults] = useState<RoundResult[]>([]);
+  const [cardCollapsed, setCardCollapsed] = useState(false);
 
   const scene = scenes[round];
 
@@ -100,6 +101,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
     setTime(ROUND_SECONDS);
     setReveal(null);
     setShowMap(false);
+    setCardCollapsed(false);
   }
 
   if (!scene) {
@@ -238,47 +240,75 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                 className="absolute inset-0 w-full h-full"
               />
 
-              {/* 揭晓时右上角对比卡 */}
+              {/* 揭晓时左下角对比卡 (可折叠) */}
               {reveal && (
-                <div className="absolute bottom-16 left-3 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
-                  <div className="flex items-baseline justify-between mb-2">
-                    <h4 className="text-base font-bold ink-text truncate pr-2">{reveal.scene.title}</h4>
-                    <div className="text-2xl font-bold text-primary shrink-0 tabular-nums">
-                      {Math.round(reveal.score / 10)}<span className="text-sm text-muted-foreground font-normal">/100</span>
-                    </div>
+                cardCollapsed ? (
+                  <div className="absolute bottom-16 left-3 z-20 flex items-center gap-2 animate-scale-in">
+                    <button
+                      type="button"
+                      onClick={() => setCardCollapsed(false)}
+                      className="paper-card px-3 py-2 flex items-center gap-2 shadow-xl hover:bg-accent/10 transition-colors"
+                      title="展开结果"
+                    >
+                      <Target className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-bold ink-text tabular-nums">
+                        {Math.round(reveal.score / 10)}<span className="text-xs text-muted-foreground font-normal">/100</span>
+                      </span>
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <Button onClick={next} className="seal-btn h-9 text-sm shadow-xl">
+                      {round + 1 >= scenes.length ? '查看结果' : '下一回合 →'}
+                    </Button>
                   </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-start gap-2">
-                      <span className="inline-block w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-muted-foreground">你的猜测</p>
-                        <p className="ink-text">
-                          {guessLoc ? `${guessLoc[1].toFixed(2)}°N, ${guessLoc[0].toFixed(2)}°E` : '未选'} · {formatYear(reveal.guessYear)}
-                        </p>
+                ) : (
+                  <div className="absolute bottom-16 left-3 z-20 paper-card p-4 w-[min(92%,320px)] animate-scale-in shadow-xl">
+                    <div className="flex items-baseline justify-between mb-2 gap-2">
+                      <h4 className="text-base font-bold ink-text truncate pr-1 flex-1">{reveal.scene.title}</h4>
+                      <div className="text-2xl font-bold text-primary shrink-0 tabular-nums">
+                        {Math.round(reveal.score / 10)}<span className="text-sm text-muted-foreground font-normal">/100</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCardCollapsed(true)}
+                        className="shrink-0 -mr-1 -mt-1 p-1 rounded hover:bg-accent/20 text-muted-foreground hover:text-foreground transition-colors"
+                        title="收起卡片"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-muted-foreground">你的猜测</p>
+                          <p className="ink-text">
+                            {guessLoc ? `${guessLoc[1].toFixed(2)}°N, ${guessLoc[0].toFixed(2)}°E` : '未选'} · {formatYear(reveal.guessYear)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-[hsl(0,65%,42%)] mt-1.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-muted-foreground">真实答案</p>
+                          <p className="ink-text">{reveal.scene.locationName} · {formatYear(reveal.scene.year)}</p>
+                        </div>
+                      </div>
+                      <div className="border-t border-border pt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-muted-foreground">距离差</p>
+                          <p className="font-semibold ink-text">{reveal.distanceKm.toFixed(0)} 公里</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">年份差</p>
+                          <p className="font-semibold ink-text">{reveal.yearError} 年</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <span className="inline-block w-2 h-2 rounded-full bg-[hsl(0,65%,42%)] mt-1.5 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-muted-foreground">真实答案</p>
-                        <p className="ink-text">{reveal.scene.locationName} · {formatYear(reveal.scene.year)}</p>
-                      </div>
-                    </div>
-                    <div className="border-t border-border pt-2 grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-muted-foreground">距离差</p>
-                        <p className="font-semibold ink-text">{reveal.distanceKm.toFixed(0)} 公里</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">年份差</p>
-                        <p className="font-semibold ink-text">{reveal.yearError} 年</p>
-                      </div>
-                    </div>
+                    <Button onClick={next} className="seal-btn w-full mt-3 h-9 text-sm">
+                      {round + 1 >= scenes.length ? '查看结果' : '下一回合 →'}
+                    </Button>
                   </div>
-                  <Button onClick={next} className="seal-btn w-full mt-3 h-9 text-sm">
-                    {round + 1 >= scenes.length ? '查看结果' : '下一回合 →'}
-                  </Button>
-                </div>
+                )
               )}
             </div>
 
