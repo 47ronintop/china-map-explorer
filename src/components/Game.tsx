@@ -310,25 +310,39 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
                   </div>
                 )
               )}
-            </div>
 
-            {!reveal && (
-              <div className="p-3 flex gap-2 border-t border-border">
-                <Button variant="outline" onClick={() => setShowMap(false)} className="flex-1">
-                  确认地点
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowMap(false);
-                    submit();
-                  }}
-                  disabled={!guessLoc}
-                  className="seal-btn flex-1"
-                >
-                  提交答案
-                </Button>
-              </div>
-            )}
+              {/* 选点时右下角浮动操作面板 */}
+              {!reveal && (
+                <div className="absolute bottom-3 right-3 z-20 paper-card p-3 flex flex-col gap-2 shadow-xl w-[min(92%,260px)] animate-scale-in">
+                  <p className="text-xs text-muted-foreground">
+                    {guessLoc
+                      ? `已选：${guessLoc[1].toFixed(2)}°N, ${guessLoc[0].toFixed(2)}°E`
+                      : '点击地图选择地点'}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowMap(false)}
+                      className="flex-1"
+                    >
+                      确认
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setShowMap(false);
+                        submit();
+                      }}
+                      disabled={!guessLoc}
+                      className="seal-btn flex-1"
+                    >
+                      提交答案
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
