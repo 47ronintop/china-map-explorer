@@ -212,6 +212,75 @@ export default function ChinaMap({
               ))
             }
           </Geographies>
+
+          {/* 主要河流 */}
+          <Geographies geography="/china-rivers.json">
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  style={{
+                    default: {
+                      fill: 'none',
+                      stroke: 'hsl(205, 60%, 50%)',
+                      strokeWidth: 1.2 / pos.zoom,
+                      strokeLinejoin: 'round',
+                      strokeLinecap: 'round',
+                      outline: 'none',
+                      pointerEvents: 'none',
+                    },
+                    hover: { fill: 'none', outline: 'none', pointerEvents: 'none' },
+                    pressed: { fill: 'none', outline: 'none', pointerEvents: 'none' },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+
+          {/* 城市标记：根据 zoom 分级显示 */}
+          {CITIES.map(([rawName, lng, lat], i) => {
+            const isMajor =
+              ['北京', '天津', '上海', '重庆'].includes(rawName) ||
+              (rawName.includes('·') &&
+                [
+                  '石家庄', '太原', '呼和浩特', '沈阳', '长春', '哈尔滨', '南京',
+                  '杭州', '合肥', '福州', '南昌', '济南', '郑州', '武汉', '长沙',
+                  '广州', '南宁', '海口', '成都', '贵阳', '昆明', '拉萨', '西安',
+                  '兰州', '西宁', '银川', '乌鲁木齐', '台北', '香港', '澳门',
+                ].some((c) => rawName.startsWith(c)));
+            // 按 zoom 决定是否显示
+            if (!isMajor && pos.zoom < 2.5) return null;
+            if (pos.zoom < 1.5 && !isMajor) return null;
+            const display = rawName.split('·')[0];
+            const r = isMajor ? 1.6 / pos.zoom : 1.0 / pos.zoom;
+            const fontSize = (isMajor ? 9 : 7) / pos.zoom;
+            return (
+              <Marker key={`city-${i}`} coordinates={[lng, lat]}>
+                <circle
+                  r={r}
+                  fill={isMajor ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
+                  style={{ pointerEvents: 'none' }}
+                />
+                <text
+                  x={r + 1.5 / pos.zoom}
+                  y={fontSize / 3}
+                  style={{
+                    fontSize,
+                    fill: 'hsl(var(--foreground))',
+                    fontFamily: 'inherit',
+                    pointerEvents: 'none',
+                    paintOrder: 'stroke',
+                    stroke: 'hsl(var(--paper))',
+                    strokeWidth: 2.5 / pos.zoom,
+                    strokeLinejoin: 'round',
+                  }}
+                >
+                  {display}
+                </text>
+              </Marker>
+            );
+          })}
         </ZoomableGroup>
       </ComposableMap>
 
