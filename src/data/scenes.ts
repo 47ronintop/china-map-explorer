@@ -1,5 +1,6 @@
 // 中国历史场景数据
 import imgChanganTang from '@/assets/scenes/changan-tang.jpg';
+import panoChanganTang from '@/assets/panoramas/changan-tang-360.jpg';
 import imgKaifengSong from '@/assets/scenes/kaifeng-song.jpg';
 import imgForbiddenCity from '@/assets/scenes/forbidden-city.jpg';
 import imgXianTerracotta from '@/assets/scenes/xian-terracotta.jpg';
@@ -17,6 +18,8 @@ export interface Scene {
   title: string;
   description: string;
   image: string;
+  /** 可选:360° equirectangular 全景图(2:1) */
+  panorama?: string;
   // 真实地点经纬度 [lng, lat]
   location: [number, number];
   locationName: string;
@@ -39,6 +42,7 @@ export const SCENES: Scene[] = [
     title: '长安城朱雀大街',
     description: '盛唐长安，朱雀大街熙攘，胡商汉客往来如织。',
     image: imgChanganTang,
+    panorama: panoChanganTang,
     location: [108.94, 34.34],
     locationName: '陕西西安',
     year: 750,
