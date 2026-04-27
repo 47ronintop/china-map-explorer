@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import 'leaflet/dist/leaflet.css';
-
 /* 中国时空猜地 - 古典水墨风设计系统 */
 
 @layer base {
@@ -126,13 +124,3 @@
   }
 }
 
-/* Leaflet 主题适配 */
-.leaflet-container {
-  background: hsl(35 25% 88%) !important;
-  font-family: inherit;
-  border-radius: var(--radius);
-}
-.leaflet-control-attribution {
-  font-size: 10px !important;
-  background: hsl(var(--card) / 0.8) !important;
-}
