@@ -121,7 +121,11 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
     <div className="min-h-screen relative overflow-hidden">
       {/* 场景图 全屏背景 — 优先使用 360° 全景 */}
       {scene.panorama ? (
-        <PanoramaViewer src={scene.panorama} className="absolute inset-0 w-full h-full" />
+        <PanoramaViewer
+          src={scene.panorama}
+          preloadSrc={scenes[round + 1]?.panorama}
+          className="absolute inset-0 w-full h-full"
+        />
       ) : (
         <img
           src={scene.image}
