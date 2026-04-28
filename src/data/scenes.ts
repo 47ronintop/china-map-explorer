@@ -2,14 +2,23 @@
 import imgChanganTang from '@/assets/scenes/changan-tang.jpg';
 import panoChanganTang from '@/assets/panoramas/changan-tang-360.jpg';
 import imgKaifengSong from '@/assets/scenes/kaifeng-song.jpg';
+import panoKaifengSong from '@/assets/panoramas/kaifeng-song-360.jpg';
 import imgForbiddenCity from '@/assets/scenes/forbidden-city.jpg';
+import panoForbiddenCity from '@/assets/panoramas/forbidden-city-360.jpg';
 import imgXianTerracotta from '@/assets/scenes/xian-terracotta.jpg';
+import panoXianTerracotta from '@/assets/panoramas/xian-terracotta-360.jpg';
 import imgDunhuangMogao from '@/assets/scenes/dunhuang-mogao.jpg';
+import panoDunhuangMogao from '@/assets/panoramas/dunhuang-mogao-360.jpg';
 import imgGreatWall from '@/assets/scenes/great-wall.jpg';
+import panoGreatWall from '@/assets/panoramas/great-wall-360.jpg';
 import imgShanghaiBund from '@/assets/scenes/shanghai-bund.jpg';
+import panoShanghaiBund from '@/assets/panoramas/shanghai-bund-360.jpg';
 import imgHangzhouWestlake from '@/assets/scenes/hangzhou-westlake.jpg';
+import panoHangzhouWestlake from '@/assets/panoramas/hangzhou-westlake-360.jpg';
 import imgLuoyangHan from '@/assets/scenes/luoyang-han.jpg';
+import panoLuoyangHan from '@/assets/panoramas/luoyang-han-360.jpg';
 import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
+import panoLijiangOld from '@/assets/panoramas/lijiang-old-360.jpg';
 
 export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
 
