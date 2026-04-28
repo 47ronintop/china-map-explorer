@@ -2,14 +2,23 @@
 import imgChanganTang from '@/assets/scenes/changan-tang.jpg';
 import panoChanganTang from '@/assets/panoramas/changan-tang-360.jpg';
 import imgKaifengSong from '@/assets/scenes/kaifeng-song.jpg';
+import panoKaifengSong from '@/assets/panoramas/kaifeng-song-360.jpg';
 import imgForbiddenCity from '@/assets/scenes/forbidden-city.jpg';
+import panoForbiddenCity from '@/assets/panoramas/forbidden-city-360.jpg';
 import imgXianTerracotta from '@/assets/scenes/xian-terracotta.jpg';
+import panoXianTerracotta from '@/assets/panoramas/xian-terracotta-360.jpg';
 import imgDunhuangMogao from '@/assets/scenes/dunhuang-mogao.jpg';
+import panoDunhuangMogao from '@/assets/panoramas/dunhuang-mogao-360.jpg';
 import imgGreatWall from '@/assets/scenes/great-wall.jpg';
+import panoGreatWall from '@/assets/panoramas/great-wall-360.jpg';
 import imgShanghaiBund from '@/assets/scenes/shanghai-bund.jpg';
+import panoShanghaiBund from '@/assets/panoramas/shanghai-bund-360.jpg';
 import imgHangzhouWestlake from '@/assets/scenes/hangzhou-westlake.jpg';
+import panoHangzhouWestlake from '@/assets/panoramas/hangzhou-westlake-360.jpg';
 import imgLuoyangHan from '@/assets/scenes/luoyang-han.jpg';
+import panoLuoyangHan from '@/assets/panoramas/luoyang-han-360.jpg';
 import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
+import panoLijiangOld from '@/assets/panoramas/lijiang-old-360.jpg';
 
 export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
 
@@ -54,6 +63,7 @@ export const SCENES: Scene[] = [
     title: '汴京虹桥',
     description: '北宋东京汴梁，虹桥之上车马喧腾，《清明上河图》所绘之景。',
     image: imgKaifengSong,
+    panorama: panoKaifengSong,
     location: [114.35, 34.8],
     locationName: '河南开封',
     year: 1120,
@@ -65,6 +75,7 @@ export const SCENES: Scene[] = [
     title: '紫禁城太和殿',
     description: '明永乐年间建成的紫禁城，皇权象征。',
     image: imgForbiddenCity,
+    panorama: panoForbiddenCity,
     location: [116.397, 39.918],
     locationName: '北京',
     year: 1420,
@@ -76,6 +87,7 @@ export const SCENES: Scene[] = [
     title: '秦始皇陵兵马俑',
     description: '秦始皇陵东侧地下军阵，千人千面。',
     image: imgXianTerracotta,
+    panorama: panoXianTerracotta,
     location: [109.27, 34.38],
     locationName: '陕西临潼',
     year: -210,
@@ -87,6 +99,7 @@ export const SCENES: Scene[] = [
     title: '敦煌莫高窟',
     description: '丝路重镇，千年壁画与彩塑荟萃。',
     image: imgDunhuangMogao,
+    panorama: panoDunhuangMogao,
     location: [94.81, 40.04],
     locationName: '甘肃敦煌',
     year: 700,
@@ -98,6 +111,7 @@ export const SCENES: Scene[] = [
     title: '居庸关长城',
     description: '明代加固之雄关，京师屏障。',
     image: imgGreatWall,
+    panorama: panoGreatWall,
     location: [116.07, 40.29],
     locationName: '北京昌平',
     year: 1500,
@@ -109,6 +123,7 @@ export const SCENES: Scene[] = [
     title: '上海外滩',
     description: '万国建筑博览群，民国十里洋场。',
     image: imgShanghaiBund,
+    panorama: panoShanghaiBund,
     location: [121.49, 31.24],
     locationName: '上海',
     year: 1935,
@@ -120,6 +135,7 @@ export const SCENES: Scene[] = [
     title: '杭州西湖',
     description: '南宋偏安，"暖风熏得游人醉"。',
     image: imgHangzhouWestlake,
+    panorama: panoHangzhouWestlake,
     location: [120.15, 30.25],
     locationName: '浙江杭州',
     year: 1180,
@@ -131,6 +147,7 @@ export const SCENES: Scene[] = [
     title: '东汉洛阳城',
     description: '东汉都城洛阳，太学云集。',
     image: imgLuoyangHan,
+    panorama: panoLuoyangHan,
     location: [112.46, 34.62],
     locationName: '河南洛阳',
     year: 100,
@@ -142,6 +159,7 @@ export const SCENES: Scene[] = [
     title: '丽江古城',
     description: '南宋纳西木氏所建，茶马古道枢纽。',
     image: imgLijiangOld,
+    panorama: panoLijiangOld,
     location: [100.23, 26.87],
     locationName: '云南丽江',
     year: 1450,
