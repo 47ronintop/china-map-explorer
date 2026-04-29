@@ -53,10 +53,17 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
   const [cardCollapsed, setCardCollapsed] = useState(false);
 
   const scene = scenes[round];
+  const [panoramaReady, setPanoramaReady] = useState(false);
+  const sceneReady = !scene?.panorama || panoramaReady;
+
+  useEffect(() => {
+    setPanoramaReady(!scene?.panorama);
+  }, [scene?.id, scene?.panorama]);
 
   // 计时
   useEffect(() => {
     if (reveal) return;
+    if (!sceneReady) return;
     if (time <= 0) {
       submit();
       return;
@@ -64,7 +71,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
     const t = setTimeout(() => setTime(s => s - 1), 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time, reveal]);
+  }, [time, reveal, sceneReady]);
 
   function submit() {
     if (!scene) return;
@@ -104,6 +111,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
     setReveal(null);
     setShowMap(false);
     setCardCollapsed(false);
+    setPanoramaReady(false);
   }
 
   if (!scene) {
@@ -124,6 +132,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
         <PanoramaViewer
           src={scene.panorama}
           preloadSrc={scenes[round + 1]?.panorama}
+          onReady={() => setPanoramaReady(true)}
           className="absolute inset-0 w-full h-full"
         />
       ) : (
@@ -201,6 +210,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           <Button
             onClick={() => setShowMap(true)}
             variant="outline"
+            disabled={!sceneReady}
             className="flex-1 bg-card/90 backdrop-blur"
           >
             <MapIcon className="w-4 h-4 mr-2" />
@@ -208,7 +218,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           </Button>
           <Button
             onClick={submit}
-            disabled={!guessLoc}
+            disabled={!sceneReady || !guessLoc}
             className="seal-btn flex-1"
           >
             提交答案

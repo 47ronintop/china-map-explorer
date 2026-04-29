@@ -6,12 +6,18 @@ interface PanoramaViewerProps {
   src: string;
   /** 可选:预加载的下一张全景图 URL */
   preloadSrc?: string;
+  /** 首帧真正渲染完成后回调,用于开始倒计时 */
+  onReady?: () => void;
   className?: string;
 }
 
 type Quality = 'low' | 'med' | 'high';
 
 function deriveVariants(src: string): Record<Quality, string> {
+  // 本地 Vite 资源发布后会被加 hash,无法可靠通过字符串派生变体；直接使用原图。
+  if (src.startsWith('/') || src.startsWith('blob:') || src.startsWith('data:')) {
+    return { low: src, med: src, high: src };
+  }
   const low = src.replace(/-360\.jpg(\?.*)?$/, '-360-low.jpg$1');
   const high = src.replace(/-360\.jpg(\?.*)?$/, '-360-high.jpg$1');
   return { low, med: src, high };
@@ -42,43 +48,113 @@ function detectTargetQuality(): Quality {
 const textureCache = new Map<string, THREE.Texture>();
 const inflight = new Map<string, Promise<THREE.Texture>>();
 
+function uniqueUrls(urls: string[]) {
+  return Array.from(new Set(urls.filter(Boolean)));
+}
+
+function imageToTexture(img: HTMLImageElement) {
+  const tex = new THREE.Texture(img);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+async function decodeBlobImage(blob: Blob): Promise<HTMLImageElement> {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('image decode failed'));
+    });
+    try { if (img.decode) await img.decode(); } catch { /* ignore */ }
+    return img;
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+}
+
+async function fetchImageWithProgress(
+  src: string,
+  priority: 'high' | 'low' | 'auto',
+  onProgress?: (progress: number) => void
+): Promise<HTMLImageElement> {
+  const response = await fetch(src, { cache: 'force-cache', priority } as RequestInit & { priority?: string });
+  if (!response.ok) throw new Error(`image request failed: ${response.status}`);
+  const total = Number(response.headers.get('content-length')) || 0;
+
+  if (!response.body || !total) {
+    const blob = await response.blob();
+    onProgress?.(85);
+    return decodeBlobImage(blob);
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      received += value.length;
+      onProgress?.(Math.min(90, Math.max(8, Math.round((received / total) * 90))));
+    }
+  }
+  const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
+  return decodeBlobImage(blob);
+}
+
 /**
  * 用 <img> + decode() 加载,比 THREE.TextureLoader 更快:
  * - 走浏览器 HTTP 缓存,与 <link rel=preload> 共用
  * - 支持 fetchpriority,可优先加载关键纹理
  */
-function loadTexture(src: string, priority: 'high' | 'low' | 'auto' = 'auto'): Promise<THREE.Texture> {
+function loadTexture(
+  src: string,
+  priority: 'high' | 'low' | 'auto' = 'auto',
+  onProgress?: (progress: number) => void
+): Promise<THREE.Texture> {
   const cached = textureCache.get(src);
-  if (cached) return Promise.resolve(cached);
+  if (cached) {
+    onProgress?.(100);
+    return Promise.resolve(cached);
+  }
   const pending = inflight.get(src);
-  if (pending) return pending;
+  if (pending) return pending.then(tex => { onProgress?.(100); return tex; });
 
-  const p = new Promise<THREE.Texture>((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    (img as any).fetchPriority = priority;
-    img.decoding = 'async';
-    img.onload = async () => {
-      try {
-        if (img.decode) await img.decode();
-      } catch { /* 忽略解码失败 */ }
-      const tex = new THREE.Texture(img);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.minFilter = THREE.LinearFilter;
-      tex.generateMipmaps = false;
-      tex.needsUpdate = true;
+  const p = fetchImageWithProgress(src, priority, onProgress)
+    .then(img => {
+      onProgress?.(96);
+      const tex = imageToTexture(img);
       textureCache.set(src, tex);
-      inflight.delete(src);
-      resolve(tex);
-    };
-    img.onerror = e => {
-      inflight.delete(src);
-      reject(e);
-    };
-    img.src = src;
-  });
+      onProgress?.(100);
+      return tex;
+    })
+    .finally(() => inflight.delete(src));
   inflight.set(src, p);
   return p;
+}
+
+async function loadFirstAvailableTexture(
+  urls: string[],
+  priority: 'high' | 'low' | 'auto',
+  onProgress?: (progress: number) => void
+) {
+  const candidates = uniqueUrls(urls);
+  let lastError: unknown;
+  for (const url of candidates) {
+    try {
+      return await loadTexture(url, priority, onProgress);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error('panorama load failed');
 }
 
 /** 仅预热浏览器 HTTP 缓存(不创建纹理),开销极小 */
@@ -94,11 +170,19 @@ function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
   document.head.appendChild(link);
 }
 
-export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: PanoramaViewerProps) => {
+  const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
+  const onReadyRef = useRef(onReady);
+  const readyCalledRef = useRef(false);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   // 预加载下一张:仅 prefetch,不解码,避开 GPU 内存压力
   useEffect(() => {
@@ -110,12 +194,15 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
   }, [preloadSrc]);
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container = mountRef.current;
     if (!container) return;
     let disposed = false;
     let cleanup = () => {};
     const variants = deriveVariants(src);
     const target = detectTargetQuality();
+    readyCalledRef.current = false;
+    setLoadFailed(false);
+    setLoadProgress(0);
 
     // 占位图:优先低清(~50KB),否则不显示模糊层
     setPlaceholderSrc(variants.low);
@@ -131,12 +218,18 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
 
     const startCached = textureCache.has(startSrc);
     setLoading(!startCached);
+    if (startCached) setLoadProgress(100);
 
     // 关键纹理高优先级
-    loadTexture(startSrc, 'high').then(initialTex => {
+    loadFirstAvailableTexture(
+      [startSrc, variants.med, variants.high, variants.low],
+      'high',
+      progress => setLoadProgress(progress)
+    ).then(initialTex => {
       if (disposed || !container) return;
-      setLoading(false);
-      const startQ: Quality = startSrc === variants.high ? 'high' : startSrc === variants.med ? 'med' : 'low';
+      const loadedSrc = uniqueUrls([startSrc, variants.med, variants.high, variants.low])
+        .find(url => textureCache.get(url) === initialTex) || startSrc;
+      const startQ: Quality = loadedSrc === variants.high ? 'high' : loadedSrc === variants.med ? 'med' : 'low';
       setActiveQuality(startQ);
 
       const scene = new THREE.Scene();
@@ -146,6 +239,8 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
       const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       container.appendChild(renderer.domElement);
 
       const geometry = new THREE.SphereGeometry(500, 48, 24);
@@ -190,6 +285,15 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
       dom.addEventListener('wheel', onWheel, { passive: false });
 
       let raf = 0;
+      let firstFrameRendered = false;
+      const markReady = () => {
+        if (readyCalledRef.current || disposed) return;
+        readyCalledRef.current = true;
+        setLoading(false);
+        setLoadProgress(100);
+        onReadyRef.current?.();
+      };
+
       const animate = () => {
         raf = requestAnimationFrame(animate);
         if (autoRotate) { lon += 0.03; needsRender = true; }
@@ -203,6 +307,10 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
           500 * Math.sin(phi) * Math.sin(theta)
         );
         renderer.render(scene, camera);
+        if (!firstFrameRendered) {
+          firstFrameRendered = true;
+          requestAnimationFrame(markReady);
+        }
       };
       animate();
 
@@ -253,13 +361,17 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
         renderer.dispose();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setLoadFailed(true);
+      setLoading(false);
+    });
 
     return () => { disposed = true; cleanup(); };
   }, [src]);
 
   return (
-    <div ref={containerRef} className={className} style={{ position: 'relative' }}>
+    <div className={className ? `${className} overflow-hidden` : 'relative overflow-hidden'}>
+      <div ref={mountRef} className="absolute inset-0" />
       {loading && placeholderSrc && (
         <>
           <img
@@ -272,11 +384,27 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
             {...({ fetchpriority: 'high' } as any)}
           />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="paper-card px-4 py-2 text-sm text-muted-foreground animate-pulse">
-              全景加载中…
+            <div className="paper-card w-[min(82vw,320px)] px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">全景加载中</span>
+                <span className="font-semibold tabular-nums ink-text">{Math.max(1, loadProgress)}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+                  style={{ width: `${Math.max(4, loadProgress)}%` }}
+                />
+              </div>
             </div>
           </div>
         </>
+      )}
+      {loadFailed && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="paper-card px-4 py-2 text-sm text-destructive">
+            全景图加载失败，请检查图片地址
+          </div>
+        </div>
       )}
       {!loading && activeQuality !== 'high' && (
         <div className="absolute bottom-2 right-2 pointer-events-none">
