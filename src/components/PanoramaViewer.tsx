@@ -114,38 +114,47 @@ async function fetchImageWithProgress(
  * - 走浏览器 HTTP 缓存,与 <link rel=preload> 共用
  * - 支持 fetchpriority,可优先加载关键纹理
  */
-function loadTexture(src: string, priority: 'high' | 'low' | 'auto' = 'auto'): Promise<THREE.Texture> {
+function loadTexture(
+  src: string,
+  priority: 'high' | 'low' | 'auto' = 'auto',
+  onProgress?: (progress: number) => void
+): Promise<THREE.Texture> {
   const cached = textureCache.get(src);
-  if (cached) return Promise.resolve(cached);
+  if (cached) {
+    onProgress?.(100);
+    return Promise.resolve(cached);
+  }
   const pending = inflight.get(src);
-  if (pending) return pending;
+  if (pending) return pending.then(tex => { onProgress?.(100); return tex; });
 
-  const p = new Promise<THREE.Texture>((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    (img as any).fetchPriority = priority;
-    img.decoding = 'async';
-    img.onload = async () => {
-      try {
-        if (img.decode) await img.decode();
-      } catch { /* 忽略解码失败 */ }
-      const tex = new THREE.Texture(img);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.minFilter = THREE.LinearFilter;
-      tex.generateMipmaps = false;
-      tex.needsUpdate = true;
+  const p = fetchImageWithProgress(src, priority, onProgress)
+    .then(img => {
+      onProgress?.(96);
+      const tex = imageToTexture(img);
       textureCache.set(src, tex);
-      inflight.delete(src);
-      resolve(tex);
-    };
-    img.onerror = e => {
-      inflight.delete(src);
-      reject(e);
-    };
-    img.src = src;
-  });
+      onProgress?.(100);
+      return tex;
+    })
+    .finally(() => inflight.delete(src));
   inflight.set(src, p);
   return p;
+}
+
+async function loadFirstAvailableTexture(
+  urls: string[],
+  priority: 'high' | 'low' | 'auto',
+  onProgress?: (progress: number) => void
+) {
+  const candidates = uniqueUrls(urls);
+  let lastError: unknown;
+  for (const url of candidates) {
+    try {
+      return await loadTexture(url, priority, onProgress);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error('panorama load failed');
 }
 
 /** 仅预热浏览器 HTTP 缓存(不创建纹理),开销极小 */
