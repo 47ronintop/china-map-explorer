@@ -368,7 +368,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
   }, [src]);
 
   return (
-    <div ref={containerRef} className={className} style={{ position: 'relative' }}>
+    <div ref={containerRef} className={className ? `${className} overflow-hidden` : 'relative overflow-hidden'}>
       {loading && placeholderSrc && (
         <>
           <img
