@@ -11,21 +11,19 @@ interface PanoramaViewerProps {
 
 type Quality = 'low' | 'med' | 'high';
 
-// 从 med URL 派生 low/high 变体(约定:文件名以 -360.jpg 结尾)
 function deriveVariants(src: string): Record<Quality, string> {
   const low = src.replace(/-360\.jpg(\?.*)?$/, '-360-low.jpg$1');
   const high = src.replace(/-360\.jpg(\?.*)?$/, '-360-high.jpg$1');
   return { low, med: src, high };
 }
 
-// 设备/网络评估 → 目标清晰度
 function detectTargetQuality(): Quality {
   if (typeof navigator === 'undefined') return 'med';
   const conn = (navigator as any).connection;
   const saveData = conn?.saveData === true;
-  const eff = conn?.effectiveType as string | undefined; // 'slow-2g'|'2g'|'3g'|'4g'
-  const downlink = conn?.downlink as number | undefined; // Mbps
-  const mem = (navigator as any).deviceMemory as number | undefined; // GB
+  const eff = conn?.effectiveType as string | undefined;
+  const downlink = conn?.downlink as number | undefined;
+  const mem = (navigator as any).deviceMemory as number | undefined;
   const cores = navigator.hardwareConcurrency || 4;
   const dpr = window.devicePixelRatio || 1;
   const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) < 600;
@@ -34,59 +32,81 @@ function detectTargetQuality(): Quality {
   if (eff === '3g' || (downlink && downlink < 1.5)) return 'low';
   if ((mem && mem <= 2) || cores <= 2) return 'low';
 
-  // 高清门槛:4g + 良好下行 + 不算羸弱设备 + 较大屏或高 DPR
   const goodNet = (eff === '4g' || !eff) && (!downlink || downlink >= 5);
   const goodDevice = (!mem || mem >= 4) && cores >= 4;
   if (goodNet && goodDevice && (!isSmallScreen || dpr >= 2)) return 'high';
   return 'med';
 }
 
-// 全局纹理缓存(按具体 URL)
+// 全局缓存:URL → Texture / 进行中的 Promise(去重)
 const textureCache = new Map<string, THREE.Texture>();
-
-function loadTexture(src: string): Promise<THREE.Texture> {
-  const cached = textureCache.get(src);
-  if (cached) return Promise.resolve(cached);
-  return new Promise((resolve, reject) => {
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
-    loader.load(
-      src,
-      tex => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.minFilter = THREE.LinearFilter;
-        tex.generateMipmaps = false;
-        textureCache.set(src, tex);
-        resolve(tex);
-      },
-      undefined,
-      reject
-    );
-  });
-}
+const inflight = new Map<string, Promise<THREE.Texture>>();
 
 /**
- * 360° 全景查看器(自适应清晰度):
- * - 先用低清(low)极速显示;
- * - 后台再升级到目标清晰度(med/high),纹理热替换无感更新;
- * - 设备/网络评估决定目标档;
- * - 纹理缓存 + 下一张预加载(目标档)。
+ * 用 <img> + decode() 加载,比 THREE.TextureLoader 更快:
+ * - 走浏览器 HTTP 缓存,与 <link rel=preload> 共用
+ * - 支持 fetchpriority,可优先加载关键纹理
  */
+function loadTexture(src: string, priority: 'high' | 'low' | 'auto' = 'auto'): Promise<THREE.Texture> {
+  const cached = textureCache.get(src);
+  if (cached) return Promise.resolve(cached);
+  const pending = inflight.get(src);
+  if (pending) return pending;
+
+  const p = new Promise<THREE.Texture>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    (img as any).fetchPriority = priority;
+    img.decoding = 'async';
+    img.onload = async () => {
+      try {
+        if (img.decode) await img.decode();
+      } catch { /* 忽略解码失败 */ }
+      const tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.minFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      tex.needsUpdate = true;
+      textureCache.set(src, tex);
+      inflight.delete(src);
+      resolve(tex);
+    };
+    img.onerror = e => {
+      inflight.delete(src);
+      reject(e);
+    };
+    img.src = src;
+  });
+  inflight.set(src, p);
+  return p;
+}
+
+/** 仅预热浏览器 HTTP 缓存(不创建纹理),开销极小 */
+function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
+  if (textureCache.has(src) || inflight.has(src)) return;
+  if (typeof document === 'undefined') return;
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = src;
+  link.crossOrigin = 'anonymous';
+  (link as any).fetchPriority = priority;
+  document.head.appendChild(link);
+}
+
 export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
+  const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
 
-  // 预加载下一张(目标档)
+  // 预加载下一张:仅 prefetch,不解码,避开 GPU 内存压力
   useEffect(() => {
     if (!preloadSrc) return;
-    const variants = deriveVariants(preloadSrc);
+    const v = deriveVariants(preloadSrc);
+    prefetchUrl(v.low, 'low');
     const target = detectTargetQuality();
-    // 预热低清 + 目标档
-    if (!textureCache.has(variants.low)) loadTexture(variants.low).catch(() => {});
-    if (target !== 'low' && !textureCache.has(variants[target])) {
-      loadTexture(variants[target]).catch(() => {});
-    }
+    if (target !== 'low') prefetchUrl(v[target], 'low');
   }, [preloadSrc]);
 
   useEffect(() => {
@@ -97,20 +117,27 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
     const variants = deriveVariants(src);
     const target = detectTargetQuality();
 
-    setLoading(!textureCache.has(variants.low) && !textureCache.has(variants[target]));
-    setActiveQuality('low');
+    // 占位图:优先低清(~50KB),否则不显示模糊层
+    setPlaceholderSrc(variants.low);
 
-    // 起点:已缓存的最高档 → 否则低清
+    // 起点:已缓存的最高档,否则低清(最快)
     const startSrc = textureCache.has(variants.high)
       ? variants.high
       : textureCache.has(variants.med)
       ? variants.med
+      : textureCache.has(variants.low)
+      ? variants.low
       : variants.low;
 
-    loadTexture(startSrc).then(initialTex => {
+    const startCached = textureCache.has(startSrc);
+    setLoading(!startCached);
+
+    // 关键纹理高优先级
+    loadTexture(startSrc, 'high').then(initialTex => {
       if (disposed || !container) return;
       setLoading(false);
-      setActiveQuality(startSrc === variants.high ? 'high' : startSrc === variants.med ? 'med' : 'low');
+      const startQ: Quality = startSrc === variants.high ? 'high' : startSrc === variants.med ? 'med' : 'low';
+      setActiveQuality(startQ);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1100);
@@ -189,24 +216,25 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
       const ro = new ResizeObserver(onResize);
       ro.observe(container);
 
-      // 渐进升级:low → target,纹理热替换
+      // 渐进升级:直接跳到目标档,不再串联中间档,降低带宽占用
       const upgradeTo = (url: string, quality: Quality) => {
         if (disposed) return;
-        loadTexture(url).then(tex => {
+        // 让首帧先稳定渲染再升级,避免抢带宽
+        const idle = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 200));
+        idle(() => {
           if (disposed) return;
-          material.map = tex;
-          material.needsUpdate = true;
-          needsRender = true;
-          setActiveQuality(quality);
-        }).catch(() => {});
+          loadTexture(url, 'low').then(tex => {
+            if (disposed) return;
+            material.map = tex;
+            material.needsUpdate = true;
+            needsRender = true;
+            setActiveQuality(quality);
+          }).catch(() => {});
+        });
       };
 
-      if (target === 'high' && startSrc !== variants.high) {
-        // 先 med 再 high(若 med 未缓存且 startSrc 为 low,med 是更快的中间档)
-        if (startSrc === variants.low) upgradeTo(variants.med, 'med');
-        upgradeTo(variants.high, 'high');
-      } else if (target === 'med' && startSrc === variants.low) {
-        upgradeTo(variants.med, 'med');
+      if (startQ !== target && (target === 'med' || target === 'high')) {
+        upgradeTo(variants[target], target);
       }
 
       cleanup = () => {
@@ -222,25 +250,23 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
         renderer.dispose();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
-    }).catch(() => {
-      // 低清也失败时:回退到 med
-      if (startSrc !== variants.med) {
-        loadTexture(variants.med).catch(() => {});
-      }
-      setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
     return () => { disposed = true; cleanup(); };
   }, [src]);
 
   return (
     <div ref={containerRef} className={className} style={{ position: 'relative' }}>
-      {loading && (
+      {loading && placeholderSrc && (
         <>
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${src})`, filter: 'blur(20px)', transform: 'scale(1.1)' }}
+          <img
+            src={placeholderSrc}
+            alt=""
             aria-hidden
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'blur(16px)', transform: 'scale(1.1)' }}
+            decoding="async"
+            {...({ fetchpriority: 'high' } as any)}
           />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="paper-card px-4 py-2 text-sm text-muted-foreground animate-pulse">
