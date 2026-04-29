@@ -177,7 +177,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
+  const onReadyRef = useRef(onReady);
   const readyCalledRef = useRef(false);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   // 预加载下一张:仅 prefetch,不解码,避开 GPU 内存压力
   useEffect(() => {
@@ -284,7 +289,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
         readyCalledRef.current = true;
         setLoading(false);
         setLoadProgress(100);
-        onReady?.();
+        onReadyRef.current?.();
       };
 
       const animate = () => {
@@ -360,7 +365,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     });
 
     return () => { disposed = true; cleanup(); };
-  }, [src, onReady]);
+  }, [src]);
 
   return (
     <div ref={containerRef} className={className} style={{ position: 'relative' }}>
