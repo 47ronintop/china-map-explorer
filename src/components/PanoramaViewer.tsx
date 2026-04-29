@@ -233,11 +233,14 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
         });
       };
 
+      // 仅在用户停留 >1.2s 后才升级,避免快速切换时浪费带宽
+      let upgradeTimer: ReturnType<typeof setTimeout> | null = null;
       if (startQ !== target && (target === 'med' || target === 'high')) {
-        upgradeTo(variants[target], target);
+        upgradeTimer = setTimeout(() => upgradeTo(variants[target], target), 1200);
       }
 
       cleanup = () => {
+        if (upgradeTimer) clearTimeout(upgradeTimer);
         cancelAnimationFrame(raf);
         ro.disconnect();
         dom.removeEventListener('pointerdown', onPointerDown);
