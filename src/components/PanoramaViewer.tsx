@@ -6,12 +6,18 @@ interface PanoramaViewerProps {
   src: string;
   /** 可选:预加载的下一张全景图 URL */
   preloadSrc?: string;
+  /** 首帧真正渲染完成后回调,用于开始倒计时 */
+  onReady?: () => void;
   className?: string;
 }
 
 type Quality = 'low' | 'med' | 'high';
 
 function deriveVariants(src: string): Record<Quality, string> {
+  // 本地 Vite 资源发布后会被加 hash,无法可靠通过字符串派生变体；直接使用原图。
+  if (src.startsWith('/') || src.startsWith('blob:') || src.startsWith('data:')) {
+    return { low: src, med: src, high: src };
+  }
   const low = src.replace(/-360\.jpg(\?.*)?$/, '-360-low.jpg$1');
   const high = src.replace(/-360\.jpg(\?.*)?$/, '-360-high.jpg$1');
   return { low, med: src, high };
@@ -41,6 +47,67 @@ function detectTargetQuality(): Quality {
 // 全局缓存:URL → Texture / 进行中的 Promise(去重)
 const textureCache = new Map<string, THREE.Texture>();
 const inflight = new Map<string, Promise<THREE.Texture>>();
+
+function uniqueUrls(urls: string[]) {
+  return Array.from(new Set(urls.filter(Boolean)));
+}
+
+function imageToTexture(img: HTMLImageElement) {
+  const tex = new THREE.Texture(img);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+async function decodeBlobImage(blob: Blob): Promise<HTMLImageElement> {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('image decode failed'));
+    });
+    try { if (img.decode) await img.decode(); } catch { /* ignore */ }
+    return img;
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+}
+
+async function fetchImageWithProgress(
+  src: string,
+  priority: 'high' | 'low' | 'auto',
+  onProgress?: (progress: number) => void
+): Promise<HTMLImageElement> {
+  const response = await fetch(src, { cache: 'force-cache', priority } as RequestInit & { priority?: string });
+  if (!response.ok) throw new Error(`image request failed: ${response.status}`);
+  const total = Number(response.headers.get('content-length')) || 0;
+
+  if (!response.body || !total) {
+    const blob = await response.blob();
+    onProgress?.(85);
+    return decodeBlobImage(blob);
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      received += value.length;
+      onProgress?.(Math.min(90, Math.max(8, Math.round((received / total) * 90))));
+    }
+  }
+  const blob = new Blob(chunks, { type: response.headers.get('content-type') || 'image/jpeg' });
+  return decodeBlobImage(blob);
+}
 
 /**
  * 用 <img> + decode() 加载,比 THREE.TextureLoader 更快:
