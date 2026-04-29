@@ -170,11 +170,14 @@ function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
   document.head.appendChild(link);
 }
 
-export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerProps) => {
+export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: PanoramaViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
+  const readyCalledRef = useRef(false);
 
   // 预加载下一张:仅 prefetch,不解码,避开 GPU 内存压力
   useEffect(() => {
@@ -192,6 +195,9 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
     let cleanup = () => {};
     const variants = deriveVariants(src);
     const target = detectTargetQuality();
+    readyCalledRef.current = false;
+    setLoadFailed(false);
+    setLoadProgress(0);
 
     // 占位图:优先低清(~50KB),否则不显示模糊层
     setPlaceholderSrc(variants.low);
@@ -207,12 +213,18 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
 
     const startCached = textureCache.has(startSrc);
     setLoading(!startCached);
+    if (startCached) setLoadProgress(100);
 
     // 关键纹理高优先级
-    loadTexture(startSrc, 'high').then(initialTex => {
+    loadFirstAvailableTexture(
+      [startSrc, variants.med, variants.high, variants.low],
+      'high',
+      progress => setLoadProgress(progress)
+    ).then(initialTex => {
       if (disposed || !container) return;
-      setLoading(false);
-      const startQ: Quality = startSrc === variants.high ? 'high' : startSrc === variants.med ? 'med' : 'low';
+      const loadedSrc = uniqueUrls([startSrc, variants.med, variants.high, variants.low])
+        .find(url => textureCache.get(url) === initialTex) || startSrc;
+      const startQ: Quality = loadedSrc === variants.high ? 'high' : loadedSrc === variants.med ? 'med' : 'low';
       setActiveQuality(startQ);
 
       const scene = new THREE.Scene();
@@ -266,6 +278,15 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
       dom.addEventListener('wheel', onWheel, { passive: false });
 
       let raf = 0;
+      let firstFrameRendered = false;
+      const markReady = () => {
+        if (readyCalledRef.current || disposed) return;
+        readyCalledRef.current = true;
+        setLoading(false);
+        setLoadProgress(100);
+        onReady?.();
+      };
+
       const animate = () => {
         raf = requestAnimationFrame(animate);
         if (autoRotate) { lon += 0.03; needsRender = true; }
@@ -279,6 +300,10 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
           500 * Math.sin(phi) * Math.sin(theta)
         );
         renderer.render(scene, camera);
+        if (!firstFrameRendered) {
+          firstFrameRendered = true;
+          requestAnimationFrame(markReady);
+        }
       };
       animate();
 
@@ -329,10 +354,13 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
         renderer.dispose();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setLoadFailed(true);
+      setLoading(false);
+    });
 
     return () => { disposed = true; cleanup(); };
-  }, [src]);
+  }, [src, onReady]);
 
   return (
     <div ref={containerRef} className={className} style={{ position: 'relative' }}>
