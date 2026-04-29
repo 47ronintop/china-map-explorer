@@ -71,7 +71,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
     const t = setTimeout(() => setTime(s => s - 1), 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time, reveal]);
+  }, [time, reveal, sceneReady]);
 
   function submit() {
     if (!scene) return;
