@@ -105,7 +105,7 @@ async function fetchImageWithProgress(
       onProgress?.(Math.min(90, Math.max(8, Math.round((received / total) * 90))));
     }
   }
-  const blob = new Blob(chunks, { type: response.headers.get('content-type') || 'image/jpeg' });
+  const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
   return decodeBlobImage(blob);
 }
 
