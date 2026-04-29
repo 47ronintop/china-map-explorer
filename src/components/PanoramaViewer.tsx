@@ -171,7 +171,7 @@ function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
 }
 
 export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: PanoramaViewerProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -194,7 +194,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
   }, [preloadSrc]);
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container = mountRef.current;
     if (!container) return;
     let disposed = false;
     let cleanup = () => {};
@@ -239,6 +239,8 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
       const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       container.appendChild(renderer.domElement);
 
       const geometry = new THREE.SphereGeometry(500, 48, 24);
@@ -368,7 +370,8 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
   }, [src]);
 
   return (
-    <div ref={containerRef} className={className ? `${className} overflow-hidden` : 'relative overflow-hidden'}>
+    <div className={className ? `${className} overflow-hidden` : 'relative overflow-hidden'}>
+      <div ref={mountRef} className="absolute inset-0" />
       {loading && placeholderSrc && (
         <>
           <img
