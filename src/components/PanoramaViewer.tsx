@@ -233,8 +233,11 @@ export const PanoramaViewer = ({ src, preloadSrc, className }: PanoramaViewerPro
         });
       };
 
+      // 仅在用户停留 >1.2s 后才升级,避免快速切换时浪费带宽
       if (startQ !== target && (target === 'med' || target === 'high')) {
-        upgradeTo(variants[target], target);
+        const upgradeTimer = setTimeout(() => upgradeTo(variants[target], target), 1200);
+        const prevCleanup = cleanup;
+        cleanup = () => { clearTimeout(upgradeTimer); prevCleanup(); };
       }
 
       cleanup = () => {
