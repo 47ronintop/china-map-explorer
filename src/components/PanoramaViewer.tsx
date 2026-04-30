@@ -498,9 +498,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
         dom.removeEventListener('pointerup', onPointerUp);
         dom.removeEventListener('pointercancel', onPointerUp);
         dom.removeEventListener('wheel', onWheel);
+        dom.removeEventListener('webglcontextlost', onContextLost as EventListener);
+        dom.removeEventListener('webglcontextrestored', onContextRestored as EventListener);
         geometry.dispose();
         material.dispose();
         renderer.dispose();
+        renderer.forceContextLoss?.();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
     }).catch((err) => {
