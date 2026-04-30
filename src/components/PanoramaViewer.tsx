@@ -199,7 +199,7 @@ function loadTexture(
     .then(img => {
       onProgress?.(96);
       const tex = imageToTexture(img);
-      textureCache.set(src, tex);
+      touchCache(src, tex);
       onProgress?.(100);
       return tex;
     })
