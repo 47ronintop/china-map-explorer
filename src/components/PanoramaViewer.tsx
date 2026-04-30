@@ -366,12 +366,24 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
       const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1100);
       camera.position.set(0, 0, 0.01);
 
-      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       container.appendChild(renderer.domElement);
+
+      // WebGL 上下文丢失保护:防止显存压力下整页闪退
+      const onContextLost = (e: Event) => {
+        e.preventDefault();
+        console.warn('[PanoramaViewer] WebGL context lost, attempting recovery');
+      };
+      const onContextRestored = () => {
+        console.warn('[PanoramaViewer] WebGL context restored, reloading');
+        if (!disposed) setRetryNonce(n => n + 1);
+      };
+      renderer.domElement.addEventListener('webglcontextlost', onContextLost as EventListener, false);
+      renderer.domElement.addEventListener('webglcontextrestored', onContextRestored as EventListener, false);
 
       const geometry = new THREE.SphereGeometry(500, 48, 24);
       geometry.scale(-1, 1, 1);
