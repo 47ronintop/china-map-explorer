@@ -45,8 +45,25 @@ function detectTargetQuality(): Quality {
 }
 
 // 全局缓存:URL → Texture / 进行中的 Promise(去重)
+// 使用 LRU 限制纹理数量,防止 GPU 显存爆掉导致 WebGL context lost / 页面闪退
+const MAX_CACHED_TEXTURES = 4;
 const textureCache = new Map<string, THREE.Texture>();
 const inflight = new Map<string, Promise<THREE.Texture>>();
+
+function touchCache(url: string, tex: THREE.Texture) {
+  // Map 保持插入顺序,删后重插即"最近使用"
+  if (textureCache.has(url)) textureCache.delete(url);
+  textureCache.set(url, tex);
+  while (textureCache.size > MAX_CACHED_TEXTURES) {
+    const oldestKey = textureCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldTex = textureCache.get(oldestKey);
+    textureCache.delete(oldestKey);
+    try { oldTex?.dispose(); } catch { /* ignore */ }
+    const img = oldTex?.image as HTMLImageElement | undefined;
+    if (img) { try { img.src = ''; } catch { /* ignore */ } }
+  }
+}
 
 function uniqueUrls(urls: string[]) {
   return Array.from(new Set(urls.filter(Boolean)));
