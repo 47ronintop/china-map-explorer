@@ -423,7 +423,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="paper-card w-[min(82vw,320px)] px-4 py-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">全景加载中</span>
+                <span className="text-muted-foreground">
+                  全景加载中
+                  {attemptInfo && attemptInfo.attempt > 1 && (
+                    <span className="ml-1 text-xs">(重试 {attemptInfo.attempt}/{attemptInfo.max})</span>
+                  )}
+                </span>
                 <span className="font-semibold tabular-nums ink-text">{Math.max(1, loadProgress)}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -437,11 +442,37 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
         </>
       )}
       {loadFailed && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="paper-card px-4 py-2 text-sm text-destructive">
-            全景图加载失败，请检查图片地址
+        <>
+          {placeholderSrc && (
+            <img
+              src={placeholderSrc}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ filter: 'blur(16px)', transform: 'scale(1.1)' }}
+              decoding="async"
+            />
+          )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="paper-card w-[min(82vw,340px)] px-4 py-4 space-y-3 text-center">
+              <div className="text-sm text-destructive font-medium">全景图加载失败</div>
+              <div className="text-xs text-muted-foreground">已自动重试多次，请检查网络后再试。</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadFailed(false);
+                  setLoadProgress(0);
+                  setAttemptInfo(null);
+                  setLoading(true);
+                  setRetryNonce(n => n + 1);
+                }}
+                className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition"
+              >
+                重新加载
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
       {!loading && activeQuality !== 'high' && (
         <div className="absolute bottom-2 right-2 pointer-events-none">
