@@ -226,12 +226,14 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     const container = mountRef.current;
     if (!container) return;
     let disposed = false;
+    const abortSignal = { aborted: false };
     let cleanup = () => {};
     const variants = deriveVariants(src);
     const target = detectTargetQuality();
     readyCalledRef.current = false;
     setLoadFailed(false);
     setLoadProgress(0);
+    setAttemptInfo(null);
 
     // 占位图:优先低清(~50KB),否则不显示模糊层
     setPlaceholderSrc(variants.low);
@@ -249,11 +251,16 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     setLoading(!startCached);
     if (startCached) setLoadProgress(100);
 
-    // 关键纹理高优先级
+    // 关键纹理高优先级 + 自动重试(指数退避)
     loadFirstAvailableTexture(
       [startSrc, variants.med, variants.high, variants.low],
       'high',
-      progress => setLoadProgress(progress)
+      progress => setLoadProgress(progress),
+      {
+        maxAttempts: 3,
+        signal: abortSignal,
+        onAttempt: (attempt, max) => setAttemptInfo({ attempt, max }),
+      }
     ).then(initialTex => {
       if (disposed || !container) return;
       const loadedSrc = uniqueUrls([startSrc, variants.med, variants.high, variants.low])
