@@ -45,8 +45,25 @@ function detectTargetQuality(): Quality {
 }
 
 // 全局缓存:URL → Texture / 进行中的 Promise(去重)
+// 使用 LRU 限制纹理数量,防止 GPU 显存爆掉导致 WebGL context lost / 页面闪退
+const MAX_CACHED_TEXTURES = 4;
 const textureCache = new Map<string, THREE.Texture>();
 const inflight = new Map<string, Promise<THREE.Texture>>();
+
+function touchCache(url: string, tex: THREE.Texture) {
+  // Map 保持插入顺序,删后重插即"最近使用"
+  if (textureCache.has(url)) textureCache.delete(url);
+  textureCache.set(url, tex);
+  while (textureCache.size > MAX_CACHED_TEXTURES) {
+    const oldestKey = textureCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldTex = textureCache.get(oldestKey);
+    textureCache.delete(oldestKey);
+    try { oldTex?.dispose(); } catch { /* ignore */ }
+    const img = oldTex?.image as HTMLImageElement | undefined;
+    if (img) { try { img.src = ''; } catch { /* ignore */ } }
+  }
+}
 
 function uniqueUrls(urls: string[]) {
   return Array.from(new Set(urls.filter(Boolean)));
@@ -155,7 +172,8 @@ async function fetchImageWithProgress(
       onProgress?.(Math.round(next));
     }
   }
-  const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
+  const blob = new Blob(chunks as BlobPart[], { type: response.headers.get('content-type') || 'image/jpeg' });
+  chunks.length = 0; // 立即释放分片引用,降低内存峰值
   return decodeBlobImage(blob);
 }
 
@@ -181,7 +199,7 @@ function loadTexture(
     .then(img => {
       onProgress?.(96);
       const tex = imageToTexture(img);
-      textureCache.set(src, tex);
+      touchCache(src, tex);
       onProgress?.(100);
       return tex;
     })
@@ -348,12 +366,24 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
       const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1100);
       camera.position.set(0, 0, 0.01);
 
-      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+      const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       container.appendChild(renderer.domElement);
+
+      // WebGL 上下文丢失保护:防止显存压力下整页闪退
+      const onContextLost = (e: Event) => {
+        e.preventDefault();
+        console.warn('[PanoramaViewer] WebGL context lost, attempting recovery');
+      };
+      const onContextRestored = () => {
+        console.warn('[PanoramaViewer] WebGL context restored, reloading');
+        if (!disposed) setRetryNonce(n => n + 1);
+      };
+      renderer.domElement.addEventListener('webglcontextlost', onContextLost as EventListener, false);
+      renderer.domElement.addEventListener('webglcontextrestored', onContextRestored as EventListener, false);
 
       const geometry = new THREE.SphereGeometry(500, 48, 24);
       geometry.scale(-1, 1, 1);
@@ -468,9 +498,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
         dom.removeEventListener('pointerup', onPointerUp);
         dom.removeEventListener('pointercancel', onPointerUp);
         dom.removeEventListener('wheel', onWheel);
+        dom.removeEventListener('webglcontextlost', onContextLost as EventListener);
+        dom.removeEventListener('webglcontextrestored', onContextRestored as EventListener);
         geometry.dispose();
         material.dispose();
         renderer.dispose();
+        renderer.forceContextLoss?.();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
     }).catch((err) => {
