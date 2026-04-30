@@ -87,10 +87,20 @@ async function fetchImageWithProgress(
   if (!response.ok) throw new Error(`image request failed: ${response.status}`);
   const total = Number(response.headers.get('content-length')) || 0;
 
+  // 无 content-length 时,基于时间的伪进度,缓慢逼近 88%
   if (!response.body || !total) {
-    const blob = await response.blob();
-    onProgress?.(85);
-    return decodeBlobImage(blob);
+    let fake = 5;
+    const timer = setInterval(() => {
+      fake = Math.min(88, fake + (88 - fake) * 0.08 + 0.5);
+      onProgress?.(Math.round(fake));
+    }, 120);
+    try {
+      const blob = await response.blob();
+      onProgress?.(90);
+      return await decodeBlobImage(blob);
+    } finally {
+      clearInterval(timer);
+    }
   }
 
   const reader = response.body.getReader();
@@ -102,7 +112,7 @@ async function fetchImageWithProgress(
     if (value) {
       chunks.push(value);
       received += value.length;
-      onProgress?.(Math.min(90, Math.max(8, Math.round((received / total) * 90))));
+      onProgress?.(Math.min(92, Math.max(2, Math.round((received / total) * 92))));
     }
   }
   const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
