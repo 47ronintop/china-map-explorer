@@ -140,18 +140,45 @@ function loadTexture(
   return p;
 }
 
+const sleep = (ms: number, signal?: { aborted: boolean }) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => {
+      if (signal?.aborted) reject(new Error('aborted'));
+      else resolve();
+    }, ms);
+    if (signal) {
+      const check = setInterval(() => {
+        if (signal.aborted) { clearTimeout(t); clearInterval(check); reject(new Error('aborted')); }
+      }, 100);
+      void check;
+    }
+  });
+
 async function loadFirstAvailableTexture(
   urls: string[],
   priority: 'high' | 'low' | 'auto',
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  opts?: { maxAttempts?: number; signal?: { aborted: boolean }; onAttempt?: (attempt: number, max: number) => void }
 ) {
   const candidates = uniqueUrls(urls);
+  const maxAttempts = opts?.maxAttempts ?? 3;
   let lastError: unknown;
-  for (const url of candidates) {
-    try {
-      return await loadTexture(url, priority, onProgress);
-    } catch (error) {
-      lastError = error;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (opts?.signal?.aborted) throw new Error('aborted');
+    opts?.onAttempt?.(attempt, maxAttempts);
+    for (const url of candidates) {
+      if (opts?.signal?.aborted) throw new Error('aborted');
+      try {
+        return await loadTexture(url, priority, onProgress);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (attempt < maxAttempts) {
+      // 指数退避: 600ms, 1500ms, 3500ms... 加入抖动
+      const backoff = Math.min(8000, 600 * Math.pow(2.2, attempt - 1)) + Math.random() * 250;
+      onProgress?.(0);
+      try { await sleep(backoff, opts?.signal); } catch { throw new Error('aborted'); }
     }
   }
   throw lastError ?? new Error('panorama load failed');
