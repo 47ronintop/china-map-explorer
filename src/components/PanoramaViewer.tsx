@@ -397,13 +397,14 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
         renderer.dispose();
         if (dom.parentNode) dom.parentNode.removeChild(dom);
       };
-    }).catch(() => {
+    }).catch((err) => {
+      if (disposed || (err && (err as Error).message === 'aborted')) return;
       setLoadFailed(true);
       setLoading(false);
     });
 
-    return () => { disposed = true; cleanup(); };
-  }, [src]);
+    return () => { disposed = true; abortSignal.aborted = true; cleanup(); };
+  }, [src, retryNonce]);
 
   return (
     <div className={className ? `${className} overflow-hidden` : 'relative overflow-hidden'}>
