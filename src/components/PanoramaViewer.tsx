@@ -467,12 +467,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
                     <span className="ml-1 text-xs">(重试 {attemptInfo.attempt}/{attemptInfo.max})</span>
                   )}
                 </span>
-                <span className="font-semibold tabular-nums ink-text">{Math.max(1, loadProgress)}%</span>
+                <span className="font-semibold tabular-nums ink-text">{Math.max(1, Math.round(displayProgress))}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
-                  style={{ width: `${Math.max(4, loadProgress)}%` }}
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${Math.max(4, displayProgress)}%` }}
                 />
               </div>
             </div>
