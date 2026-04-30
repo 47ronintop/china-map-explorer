@@ -78,6 +78,29 @@ async function decodeBlobImage(blob: Blob): Promise<HTMLImageElement> {
   }
 }
 
+/**
+ * 估算当前网络速度对应的"伪进度"参数:
+ * - slow:  半衰时间长(到 88% 约需 18~25s),起步慢,封顶 80%
+ * - normal: 中等(到 88% 约需 6~9s),封顶 88%
+ * - fast:  快(到 88% 约需 2~3s),封顶 92%
+ */
+function estimateNetworkProfile(): { halfLifeMs: number; cap: number; baseStep: number; tickMs: number } {
+  const conn = typeof navigator !== 'undefined' ? (navigator as any).connection : undefined;
+  const eff = conn?.effectiveType as string | undefined;
+  const downlink = conn?.downlink as number | undefined; // Mbps
+  const saveData = conn?.saveData === true;
+  const rtt = conn?.rtt as number | undefined;
+
+  let speed: 'slow' | 'normal' | 'fast' = 'normal';
+  if (saveData || eff === 'slow-2g' || eff === '2g') speed = 'slow';
+  else if (eff === '3g' || (downlink && downlink < 1.2) || (rtt && rtt > 600)) speed = 'slow';
+  else if ((eff === '4g' || !eff) && (!downlink || downlink >= 5) && (!rtt || rtt < 200)) speed = 'fast';
+
+  if (speed === 'slow') return { halfLifeMs: 6000, cap: 80, baseStep: 0.08, tickMs: 200 };
+  if (speed === 'fast') return { halfLifeMs: 900,  cap: 92, baseStep: 0.6,  tickMs: 100 };
+  return                    { halfLifeMs: 2200, cap: 88, baseStep: 0.25, tickMs: 140 };
+}
+
 async function fetchImageWithProgress(
   src: string,
   priority: 'high' | 'low' | 'auto',
@@ -86,17 +109,26 @@ async function fetchImageWithProgress(
   const response = await fetch(src, { cache: 'force-cache', priority } as RequestInit & { priority?: string });
   if (!response.ok) throw new Error(`image request failed: ${response.status}`);
   const total = Number(response.headers.get('content-length')) || 0;
+  const profile = estimateNetworkProfile();
 
-  // 无 content-length 时,基于时间的伪进度,缓慢逼近 88%
+  // 无 content-length 时,基于真实耗时的伪进度:
+  // 用 1 - 0.5^(t/halfLife) 形状,慢网络会自然延长爬升时间,且保留最低爬升速率防止停滞
   if (!response.body || !total) {
-    let fake = 5;
+    const startedAt = performance.now();
+    let lastShown = 2;
+    onProgress?.(lastShown);
     const timer = setInterval(() => {
-      fake = Math.min(88, fake + (88 - fake) * 0.08 + 0.5);
-      onProgress?.(Math.round(fake));
-    }, 120);
+      const t = performance.now() - startedAt;
+      const decay = Math.pow(0.5, t / profile.halfLifeMs);
+      const target = profile.cap * (1 - decay);
+      // 至少按 baseStep 爬升,避免长时间数字不动
+      const next = Math.min(profile.cap, Math.max(target, lastShown + profile.baseStep));
+      lastShown = next;
+      onProgress?.(Math.round(next));
+    }, profile.tickMs);
     try {
       const blob = await response.blob();
-      onProgress?.(90);
+      onProgress?.(Math.max(lastShown, 90));
       return await decodeBlobImage(blob);
     } finally {
       clearInterval(timer);
@@ -106,13 +138,21 @@ async function fetchImageWithProgress(
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let received = 0;
+  const startedAt = performance.now();
+  let lastShown = 2;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     if (value) {
       chunks.push(value);
       received += value.length;
-      onProgress?.(Math.min(92, Math.max(2, Math.round((received / total) * 92))));
+      const real = (received / total) * 92;
+      // 慢网络下若 real 长时间没动,用基于时间的最低爬升垫一下,保证视觉连续
+      const elapsed = performance.now() - startedAt;
+      const floor = Math.min(profile.cap, profile.cap * (1 - Math.pow(0.5, elapsed / (profile.halfLifeMs * 1.5))));
+      const next = Math.max(2, Math.min(92, Math.max(real, floor, lastShown + 0.05)));
+      lastShown = next;
+      onProgress?.(Math.round(next));
     }
   }
   const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
