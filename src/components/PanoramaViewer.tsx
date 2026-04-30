@@ -210,14 +210,41 @@ function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
 export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: PanoramaViewerProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadProgress, setLoadProgress] = useState(0); // 真实/目标进度
+  const [displayProgress, setDisplayProgress] = useState(0); // 动画后展示的进度
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
   const [attemptInfo, setAttemptInfo] = useState<{ attempt: number; max: number } | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const targetProgressRef = useRef(0);
   const onReadyRef = useRef(onReady);
   const readyCalledRef = useRef(false);
+
+  useEffect(() => { targetProgressRef.current = loadProgress; }, [loadProgress]);
+
+  // 平滑动画: displayProgress 用 rAF 缓慢逼近目标,避免数字跳变
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      setDisplayProgress(prev => {
+        const target = targetProgressRef.current;
+        if (Math.abs(prev - target) < 0.3) return target;
+        // 接近目标时减速;同时保证最小爬升速度,避免长时间停滞
+        const ease = (target - prev) * Math.min(1, dt / 220);
+        const minStep = target > prev ? Math.max(0.08, dt * 0.04) : -Math.max(0.08, dt * 0.06);
+        const step = Math.abs(ease) > Math.abs(minStep) ? ease : minStep;
+        const next = prev + step;
+        return target > prev ? Math.min(target, next) : Math.max(target, next);
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     onReadyRef.current = onReady;
