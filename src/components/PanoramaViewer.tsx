@@ -270,6 +270,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     readyCalledRef.current = false;
     setLoadFailed(false);
     setLoadProgress(0);
+    setDisplayProgress(0);
     setAttemptInfo(null);
 
     // 占位图:优先低清(~50KB),否则不显示模糊层
