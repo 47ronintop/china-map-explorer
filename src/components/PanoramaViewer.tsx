@@ -87,10 +87,20 @@ async function fetchImageWithProgress(
   if (!response.ok) throw new Error(`image request failed: ${response.status}`);
   const total = Number(response.headers.get('content-length')) || 0;
 
+  // 无 content-length 时,基于时间的伪进度,缓慢逼近 88%
   if (!response.body || !total) {
-    const blob = await response.blob();
-    onProgress?.(85);
-    return decodeBlobImage(blob);
+    let fake = 5;
+    const timer = setInterval(() => {
+      fake = Math.min(88, fake + (88 - fake) * 0.08 + 0.5);
+      onProgress?.(Math.round(fake));
+    }, 120);
+    try {
+      const blob = await response.blob();
+      onProgress?.(90);
+      return await decodeBlobImage(blob);
+    } finally {
+      clearInterval(timer);
+    }
   }
 
   const reader = response.body.getReader();
@@ -102,7 +112,7 @@ async function fetchImageWithProgress(
     if (value) {
       chunks.push(value);
       received += value.length;
-      onProgress?.(Math.min(90, Math.max(8, Math.round((received / total) * 90))));
+      onProgress?.(Math.min(92, Math.max(2, Math.round((received / total) * 92))));
     }
   }
   const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
@@ -200,14 +210,41 @@ function prefetchUrl(src: string, priority: 'high' | 'low' = 'low') {
 export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: PanoramaViewerProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadProgress, setLoadProgress] = useState(0); // 真实/目标进度
+  const [displayProgress, setDisplayProgress] = useState(0); // 动画后展示的进度
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
   const [attemptInfo, setAttemptInfo] = useState<{ attempt: number; max: number } | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const targetProgressRef = useRef(0);
   const onReadyRef = useRef(onReady);
   const readyCalledRef = useRef(false);
+
+  useEffect(() => { targetProgressRef.current = loadProgress; }, [loadProgress]);
+
+  // 平滑动画: displayProgress 用 rAF 缓慢逼近目标,避免数字跳变
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      setDisplayProgress(prev => {
+        const target = targetProgressRef.current;
+        if (Math.abs(prev - target) < 0.3) return target;
+        // 接近目标时减速;同时保证最小爬升速度,避免长时间停滞
+        const ease = (target - prev) * Math.min(1, dt / 220);
+        const minStep = target > prev ? Math.max(0.08, dt * 0.04) : -Math.max(0.08, dt * 0.06);
+        const step = Math.abs(ease) > Math.abs(minStep) ? ease : minStep;
+        const next = prev + step;
+        return target > prev ? Math.min(target, next) : Math.max(target, next);
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -233,6 +270,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     readyCalledRef.current = false;
     setLoadFailed(false);
     setLoadProgress(0);
+    setDisplayProgress(0);
     setAttemptInfo(null);
 
     // 占位图:优先低清(~50KB),否则不显示模糊层
@@ -255,7 +293,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     loadFirstAvailableTexture(
       [startSrc, variants.med, variants.high, variants.low],
       'high',
-      progress => setLoadProgress(progress),
+      progress => setLoadProgress(prev => Math.max(prev, progress)),
       {
         maxAttempts: 3,
         signal: abortSignal,
@@ -429,12 +467,12 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
                     <span className="ml-1 text-xs">(重试 {attemptInfo.attempt}/{attemptInfo.max})</span>
                   )}
                 </span>
-                <span className="font-semibold tabular-nums ink-text">{Math.max(1, loadProgress)}%</span>
+                <span className="font-semibold tabular-nums ink-text">{Math.max(1, Math.round(displayProgress))}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
-                  style={{ width: `${Math.max(4, loadProgress)}%` }}
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${Math.max(4, displayProgress)}%` }}
                 />
               </div>
             </div>
