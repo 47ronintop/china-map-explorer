@@ -263,7 +263,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
 
   useEffect(() => { targetProgressRef.current = loadProgress; }, [loadProgress]);
 
-  // 平滑动画: displayProgress 用 rAF 缓慢逼近目标,避免数字跳变
+  // 平滑动画: displayProgress 用 rAF 缓慢逼近目标,严格单调递增,避免回退/跳变
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
@@ -272,13 +272,11 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
       last = now;
       setDisplayProgress(prev => {
         const target = targetProgressRef.current;
-        if (Math.abs(prev - target) < 0.3) return target;
-        // 接近目标时减速;同时保证最小爬升速度,避免长时间停滞
-        const ease = (target - prev) * Math.min(1, dt / 220);
-        const minStep = target > prev ? Math.max(0.08, dt * 0.04) : -Math.max(0.08, dt * 0.06);
-        const step = Math.abs(ease) > Math.abs(minStep) ? ease : minStep;
-        const next = prev + step;
-        return target > prev ? Math.min(target, next) : Math.max(target, next);
+        if (target <= prev) return prev; // 单调,不回退
+        if (target - prev < 0.3) return target;
+        const ease = (target - prev) * Math.min(1, dt / 260);
+        const minStep = Math.max(0.06, dt * 0.03);
+        return Math.min(target, prev + Math.max(ease, minStep));
       });
       raf = requestAnimationFrame(tick);
     };
