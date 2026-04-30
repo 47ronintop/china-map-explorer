@@ -204,6 +204,8 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality>('low');
   const [placeholderSrc, setPlaceholderSrc] = useState<string>('');
+  const [attemptInfo, setAttemptInfo] = useState<{ attempt: number; max: number } | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const onReadyRef = useRef(onReady);
   const readyCalledRef = useRef(false);
 
