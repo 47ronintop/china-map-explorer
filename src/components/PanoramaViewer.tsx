@@ -293,7 +293,7 @@ export const PanoramaViewer = ({ src, preloadSrc, onReady, className }: Panorama
     loadFirstAvailableTexture(
       [startSrc, variants.med, variants.high, variants.low],
       'high',
-      progress => setLoadProgress(progress),
+      progress => setLoadProgress(prev => Math.max(prev, progress)),
       {
         maxAttempts: 3,
         signal: abortSignal,
