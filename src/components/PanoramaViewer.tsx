@@ -172,7 +172,8 @@ async function fetchImageWithProgress(
       onProgress?.(Math.round(next));
     }
   }
-  const blob = new Blob(chunks.map(chunk => chunk.slice().buffer), { type: response.headers.get('content-type') || 'image/jpeg' });
+  const blob = new Blob(chunks as BlobPart[], { type: response.headers.get('content-type') || 'image/jpeg' });
+  chunks.length = 0; // 立即释放分片引用,降低内存峰值
   return decodeBlobImage(blob);
 }
 
