@@ -104,10 +104,14 @@ export default function Index() {
             选择时期
           </h2>
           <div className="space-y-2">
-            <EraButton active={era === 'all'} onClick={() => setEra('all')}>
-              <div className="font-bold">全部</div>
-              <div className="text-xs opacity-70">所有时代</div>
-            </EraButton>
+            <div className="grid grid-cols-3 gap-2">
+              <div />
+              <EraButton active={era === 'all'} onClick={() => setEra('all')}>
+                <div className="font-bold">全部</div>
+                <div className="text-xs opacity-70">所有时代</div>
+              </EraButton>
+              <div />
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(ERAS) as Era[]).map(k => (
                 <EraButton
