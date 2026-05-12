@@ -21,7 +21,14 @@ import panoLuoyangHan from '@/assets/panoramas/luoyang-han-360.jpg';
 import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
 import panoLijiangOld from '@/assets/panoramas/lijiang-old-360.jpg';
 
-export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
+export type Era = 'ancient' | 'recent' | 'modern';
+
+// 根据年份推断时代：古代(先秦-1840) / 近代(1840-1949) / 现代(1949至今)
+export function eraFromYear(year: number): Era {
+  if (year >= 1949) return 'modern';
+  if (year >= 1840) return 'recent';
+  return 'ancient';
+}
 
 export interface Scene {
   id: string;
@@ -37,24 +44,23 @@ export interface Scene {
 }
 
 export const ERAS: Record<Era, { label: string; range: string }> = {
-  modern: { label: '现代', range: '1912 至今' },
-  'ming-qing': { label: '明清', range: '1368 - 1912' },
-  'tang-song': { label: '唐宋', range: '618 - 1279' },
-  ancient: { label: '秦汉及更早', range: '公元前 221 之前 - 公元 220' },
+  ancient: { label: '古代', range: '先秦 - 1840' },
+  recent: { label: '近代', range: '1840 - 1949' },
+  modern: { label: '现代', range: '1949 至今' },
 };
 
 // 静态回退数据(数据库未加载时使用)
 const FALLBACK_SCENES: Scene[] = [
-  { id: 'changan-tang', title: '长安城朱雀大街', description: '盛唐长安，朱雀大街熙攘，胡商汉客往来如织。', image: imgChanganTang, panorama: panoChanganTang, location: [108.94, 34.34], locationName: '陕西西安', year: 750, era: 'tang-song', source: '历史复原' },
-  { id: 'kaifeng-song', title: '汴京虹桥', description: '北宋东京汴梁，虹桥之上车马喧腾。', image: imgKaifengSong, panorama: panoKaifengSong, location: [114.35, 34.8], locationName: '河南开封', year: 1120, era: 'tang-song', source: '清明上河图' },
-  { id: 'forbidden-city', title: '紫禁城太和殿', description: '明永乐年间建成的紫禁城，皇权象征。', image: imgForbiddenCity, panorama: panoForbiddenCity, location: [116.397, 39.918], locationName: '北京', year: 1420, era: 'ming-qing', source: '明史' },
-  { id: 'xian-terracotta', title: '秦始皇陵兵马俑', description: '秦始皇陵东侧地下军阵。', image: imgXianTerracotta, panorama: panoXianTerracotta, location: [109.27, 34.38], locationName: '陕西临潼', year: -210, era: 'ancient', source: '考古发现' },
-  { id: 'dunhuang-mogao', title: '敦煌莫高窟', description: '丝路重镇，千年壁画。', image: imgDunhuangMogao, panorama: panoDunhuangMogao, location: [94.81, 40.04], locationName: '甘肃敦煌', year: 700, era: 'tang-song', source: '敦煌研究院' },
-  { id: 'great-wall', title: '居庸关长城', description: '明代加固之雄关。', image: imgGreatWall, panorama: panoGreatWall, location: [116.07, 40.29], locationName: '北京昌平', year: 1500, era: 'ming-qing', source: '明长城' },
-  { id: 'shanghai-bund', title: '上海外滩', description: '万国建筑博览群。', image: imgShanghaiBund, panorama: panoShanghaiBund, location: [121.49, 31.24], locationName: '上海', year: 1935, era: 'modern', source: '近代摄影' },
-  { id: 'hangzhou-westlake', title: '杭州西湖', description: '南宋偏安。', image: imgHangzhouWestlake, panorama: panoHangzhouWestlake, location: [120.15, 30.25], locationName: '浙江杭州', year: 1180, era: 'tang-song', source: '南宋画作' },
-  { id: 'luoyang-han', title: '东汉洛阳城', description: '东汉都城洛阳。', image: imgLuoyangHan, panorama: panoLuoyangHan, location: [112.46, 34.62], locationName: '河南洛阳', year: 100, era: 'ancient', source: '后汉书' },
-  { id: 'lijiang-old', title: '丽江古城', description: '茶马古道枢纽。', image: imgLijiangOld, panorama: panoLijiangOld, location: [100.23, 26.87], locationName: '云南丽江', year: 1450, era: 'ming-qing', source: '明清木氏' },
+  { id: 'changan-tang', title: '长安城朱雀大街', description: '盛唐长安，朱雀大街熙攘，胡商汉客往来如织。', image: imgChanganTang, panorama: panoChanganTang, location: [108.94, 34.34], locationName: '陕西西安', year: 750, era: eraFromYear(750), source: '历史复原' },
+  { id: 'kaifeng-song', title: '汴京虹桥', description: '北宋东京汴梁，虹桥之上车马喧腾。', image: imgKaifengSong, panorama: panoKaifengSong, location: [114.35, 34.8], locationName: '河南开封', year: 1120, era: eraFromYear(1120), source: '清明上河图' },
+  { id: 'forbidden-city', title: '紫禁城太和殿', description: '明永乐年间建成的紫禁城，皇权象征。', image: imgForbiddenCity, panorama: panoForbiddenCity, location: [116.397, 39.918], locationName: '北京', year: 1420, era: eraFromYear(1420), source: '明史' },
+  { id: 'xian-terracotta', title: '秦始皇陵兵马俑', description: '秦始皇陵东侧地下军阵。', image: imgXianTerracotta, panorama: panoXianTerracotta, location: [109.27, 34.38], locationName: '陕西临潼', year: -210, era: eraFromYear(-210), source: '考古发现' },
+  { id: 'dunhuang-mogao', title: '敦煌莫高窟', description: '丝路重镇，千年壁画。', image: imgDunhuangMogao, panorama: panoDunhuangMogao, location: [94.81, 40.04], locationName: '甘肃敦煌', year: 700, era: eraFromYear(700), source: '敦煌研究院' },
+  { id: 'great-wall', title: '居庸关长城', description: '明代加固之雄关。', image: imgGreatWall, panorama: panoGreatWall, location: [116.07, 40.29], locationName: '北京昌平', year: 1500, era: eraFromYear(1500), source: '明长城' },
+  { id: 'shanghai-bund', title: '上海外滩', description: '万国建筑博览群。', image: imgShanghaiBund, panorama: panoShanghaiBund, location: [121.49, 31.24], locationName: '上海', year: 1935, era: eraFromYear(1935), source: '近代摄影' },
+  { id: 'hangzhou-westlake', title: '杭州西湖', description: '南宋偏安。', image: imgHangzhouWestlake, panorama: panoHangzhouWestlake, location: [120.15, 30.25], locationName: '浙江杭州', year: 1180, era: eraFromYear(1180), source: '南宋画作' },
+  { id: 'luoyang-han', title: '东汉洛阳城', description: '东汉都城洛阳。', image: imgLuoyangHan, panorama: panoLuoyangHan, location: [112.46, 34.62], locationName: '河南洛阳', year: 100, era: eraFromYear(100), source: '后汉书' },
+  { id: 'lijiang-old', title: '丽江古城', description: '茶马古道枢纽。', image: imgLijiangOld, panorama: panoLijiangOld, location: [100.23, 26.87], locationName: '云南丽江', year: 1450, era: eraFromYear(1450), source: '明清木氏' },
 ];
 
 // 运行时场景列表(可变),默认先用回退,加载成功后替换
@@ -77,7 +83,7 @@ export async function loadScenes(): Promise<Scene[]> {
     location: [Number(r.lng), Number(r.lat)],
     locationName: r.location_name,
     year: r.year,
-    era: r.era as Era,
+    era: eraFromYear(r.year),
     source: r.source,
   }));
   return SCENES;

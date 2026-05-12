@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+
 import ChinaMap from './ChinaMap';
 import { PanoramaViewer } from './PanoramaViewer';
 import {
@@ -152,8 +152,8 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           <span className="text-xs text-muted-foreground">/ {scenes.length} 回合</span>
         </div>
 
-        <div className="paper-card px-4 py-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
+        <div className="paper-card px-3 py-2 flex items-center gap-3">
+          <CircularTimer value={time} max={ROUND_SECONDS} />
           <span className={`text-2xl font-bold tabular-nums ${time <= 10 ? 'text-destructive' : 'ink-text'}`}>
             {String(Math.floor(time / 60)).padStart(2, '0')}:{String(time % 60).padStart(2, '0')}
           </span>
@@ -185,17 +185,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               <label className="text-sm text-muted-foreground tracking-widest">猜测年份</label>
               <span className="text-xl font-bold ink-text">{formatYear(guessYear)}</span>
             </div>
-            <Slider
-              value={[guessYear]}
-              min={-1000}
-              max={2024}
-              step={1}
-              onValueChange={v => setGuessYear(v[0])}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>公元前 1000</span>
-              <span>公元 2024</span>
-            </div>
+            <YearScale value={guessYear} min={-1000} max={2024} onChange={setGuessYear} />
           </div>
         )}
 
@@ -375,6 +365,138 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 圆环倒计时
+function CircularTimer({ value, max }: { value: number; max: number }) {
+  const size = 36;
+  const stroke = 3.5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, value / max));
+  const offset = c * (1 - pct);
+  const danger = value <= 10;
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="hsl(var(--muted))"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={danger ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+        />
+      </svg>
+      <Clock className={`w-3.5 h-3.5 absolute inset-0 m-auto ${danger ? 'text-destructive' : 'text-primary'}`} />
+    </div>
+  );
+}
+
+// 年份刻度尺(参考 wen-ware.com 的时间轴风格)
+function YearScale({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
+  // 主刻度年份
+  const majors = [-1000, -500, 0, 500, 1000, 1500, 1840, 1949, 2024];
+  // 次刻度
+  const minors: number[] = [];
+  for (let y = -1000; y <= 2024; y += 100) minors.push(y);
+
+  const pctOf = (y: number) => ((y - min) / (max - min)) * 100;
+
+  const setFromClientX = (clientX: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onChange(Math.round(min + ratio * (max - min)));
+  };
+
+  return (
+    <div className="select-none">
+      <div
+        ref={trackRef}
+        className="relative h-12 cursor-pointer touch-none"
+        onPointerDown={(e) => {
+          draggingRef.current = true;
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          setFromClientX(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (draggingRef.current) setFromClientX(e.clientX);
+        }}
+        onPointerUp={(e) => {
+          draggingRef.current = false;
+          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+        }}
+      >
+        {/* 基线 */}
+        <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
+
+        {/* 已选中区域(从起点到指针) */}
+        <div
+          className="absolute top-1/2 h-px bg-primary/70"
+          style={{ left: 0, width: `${pctOf(value)}%` }}
+        />
+
+        {/* 次刻度 */}
+        {minors.map((y) => (
+          <div
+            key={`mn-${y}`}
+            className="absolute top-1/2 -translate-y-1/2 w-px bg-border"
+            style={{ left: `${pctOf(y)}%`, height: 6 }}
+          />
+        ))}
+
+        {/* 主刻度 + 标签 */}
+        {majors.map((y) => (
+          <div
+            key={`mj-${y}`}
+            className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center"
+            style={{ left: `${pctOf(y)}%`, transform: `translate(-50%, -50%)` }}
+          >
+            <div className="w-px h-3 bg-muted-foreground/70" />
+            <span className="text-[10px] text-muted-foreground mt-1 tabular-nums whitespace-nowrap">
+              {y < 0 ? `前${-y}` : y}
+            </span>
+          </div>
+        ))}
+
+        {/* 指针 */}
+        <div
+          className="absolute top-0 bottom-0 flex flex-col items-center pointer-events-none"
+          style={{ left: `${pctOf(value)}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="w-0.5 flex-1 bg-primary" />
+          <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-2 border-card shadow" />
+        </div>
+      </div>
     </div>
   );
 }
