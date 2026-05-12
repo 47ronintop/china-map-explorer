@@ -55,7 +55,10 @@ export default function Index() {
           <div className="space-y-3 py-4">
             <div className="flex justify-between items-baseline border-b border-border pb-2">
               <span className="text-muted-foreground">总分</span>
-              <span className="text-4xl font-bold text-primary">{totals.score}</span>
+              <span className="text-4xl font-bold text-primary">
+                {Math.round(totals.score / 50)}
+                <span className="text-base text-muted-foreground font-normal">/100</span>
+              </span>
             </div>
             <div className="flex justify-between items-baseline border-b border-border pb-2">
               <span className="text-muted-foreground">总距离误差</span>
