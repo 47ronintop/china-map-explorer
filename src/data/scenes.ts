@@ -83,7 +83,7 @@ export async function loadScenes(): Promise<Scene[]> {
     location: [Number(r.lng), Number(r.lat)],
     locationName: r.location_name,
     year: r.year,
-    era: r.era as Era,
+    era: eraFromYear(r.year),
     source: r.source,
   }));
   return SCENES;
