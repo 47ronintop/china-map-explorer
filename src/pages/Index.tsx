@@ -55,7 +55,10 @@ export default function Index() {
           <div className="space-y-3 py-4">
             <div className="flex justify-between items-baseline border-b border-border pb-2">
               <span className="text-muted-foreground">总分</span>
-              <span className="text-4xl font-bold text-primary">{totals.score}</span>
+              <span className="text-4xl font-bold text-primary">
+                {Math.round(totals.score / 50)}
+                <span className="text-base text-muted-foreground font-normal">/100</span>
+              </span>
             </div>
             <div className="flex justify-between items-baseline border-b border-border pb-2">
               <span className="text-muted-foreground">总距离误差</span>
@@ -100,21 +103,23 @@ export default function Index() {
           <h2 className="text-sm tracking-widest text-muted-foreground text-center">
             选择时期
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="space-y-2">
             <EraButton active={era === 'all'} onClick={() => setEra('all')}>
               <div className="font-bold">全部</div>
               <div className="text-xs opacity-70">所有时代</div>
             </EraButton>
-            {(Object.keys(ERAS) as Era[]).map(k => (
-              <EraButton
-                key={k}
-                active={era === k}
-                onClick={() => setEra(k)}
-              >
-                <div className="font-bold">{ERAS[k].label}</div>
-                <div className="text-xs opacity-70">{ERAS[k].range}</div>
-              </EraButton>
-            ))}
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(ERAS) as Era[]).map(k => (
+                <EraButton
+                  key={k}
+                  active={era === k}
+                  onClick={() => setEra(k)}
+                >
+                  <div className="font-bold">{ERAS[k].label}</div>
+                  <div className="text-xs opacity-70">{ERAS[k].range}</div>
+                </EraButton>
+              ))}
+            </div>
           </div>
         </section>
 
