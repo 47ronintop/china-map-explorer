@@ -152,8 +152,8 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
           <span className="text-xs text-muted-foreground">/ {scenes.length} 回合</span>
         </div>
 
-        <div className="paper-card px-4 py-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
+        <div className="paper-card px-3 py-2 flex items-center gap-3">
+          <CircularTimer value={time} max={ROUND_SECONDS} />
           <span className={`text-2xl font-bold tabular-nums ${time <= 10 ? 'text-destructive' : 'ink-text'}`}>
             {String(Math.floor(time / 60)).padStart(2, '0')}:{String(time % 60).padStart(2, '0')}
           </span>
