@@ -21,7 +21,14 @@ import panoLuoyangHan from '@/assets/panoramas/luoyang-han-360.jpg';
 import imgLijiangOld from '@/assets/scenes/lijiang-old.jpg';
 import panoLijiangOld from '@/assets/panoramas/lijiang-old-360.jpg';
 
-export type Era = 'ancient' | 'tang-song' | 'ming-qing' | 'modern';
+export type Era = 'ancient' | 'recent' | 'modern';
+
+// 根据年份推断时代：古代(先秦-1840) / 近代(1840-1949) / 现代(1949至今)
+export function eraFromYear(year: number): Era {
+  if (year >= 1949) return 'modern';
+  if (year >= 1840) return 'recent';
+  return 'ancient';
+}
 
 export interface Scene {
   id: string;
