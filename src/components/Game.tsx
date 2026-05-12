@@ -185,17 +185,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               <label className="text-sm text-muted-foreground tracking-widest">猜测年份</label>
               <span className="text-xl font-bold ink-text">{formatYear(guessYear)}</span>
             </div>
-            <Slider
-              value={[guessYear]}
-              min={-1000}
-              max={2024}
-              step={1}
-              onValueChange={v => setGuessYear(v[0])}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>公元前 1000</span>
-              <span>公元 2024</span>
-            </div>
+            <YearScale value={guessYear} min={-1000} max={2024} onChange={setGuessYear} />
           </div>
         )}
 
