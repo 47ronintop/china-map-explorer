@@ -44,9 +44,9 @@ export interface Scene {
 }
 
 export const ERAS: Record<Era, { label: string; range: string }> = {
-  modern: { label: '现代', range: '1949 至今' },
-  recent: { label: '近代', range: '1840 - 1949' },
   ancient: { label: '古代', range: '先秦 - 1840' },
+  recent: { label: '近代', range: '1840 - 1949' },
+  modern: { label: '现代', range: '1949 至今' },
 };
 
 // 静态回退数据(数据库未加载时使用)
