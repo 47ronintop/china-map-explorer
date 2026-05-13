@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Upload, Trash2, Plus, LogOut, Save } from 'lucide-react';
+import { eraFromYear, ERAS } from '@/data/scenes';
 
 const AUTH_KEY = 'hx_admin_auth';
 
@@ -80,7 +81,7 @@ export default function Admin() {
       toast.error('ID、标题、场景图必填'); return;
     }
     setLoading(true);
-    const { error } = await supabase.from('scenes').upsert(editing);
+    const { error } = await supabase.from('scenes').upsert({ ...editing, era: eraFromYear(editing.year) });
     setLoading(false);
     if (error) toast.error(error.message);
     else { toast.success('已保存'); setEditing(null); refresh(); }
@@ -175,15 +176,11 @@ export default function Admin() {
               <Field label="标题" full><Input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} /></Field>
               <Field label="描述" full><Textarea rows={2} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} /></Field>
               <Field label="地点名"><Input value={editing.location_name} onChange={e => setEditing({ ...editing, location_name: e.target.value })} /></Field>
-              <Field label="年份 (BCE 用负数)"><Input type="number" value={editing.year} onChange={e => setEditing({ ...editing, year: +e.target.value })} /></Field>
+              <Field label="年份 (BCE 用负数)"><Input type="number" value={editing.year} onChange={e => { const y = +e.target.value; setEditing({ ...editing, year: y, era: eraFromYear(y) }); }} /></Field>
               <Field label="经度 (lng)"><Input type="number" step="0.001" value={editing.lng} onChange={e => setEditing({ ...editing, lng: +e.target.value })} /></Field>
               <Field label="纬度 (lat)"><Input type="number" step="0.001" value={editing.lat} onChange={e => setEditing({ ...editing, lat: +e.target.value })} /></Field>
-              <Field label="时代">
-                <select className="w-full h-10 rounded-md border border-input bg-background px-3" value={editing.era} onChange={e => setEditing({ ...editing, era: e.target.value })}>
-                  <option value="ancient">古代 (先秦-1840)</option>
-                  <option value="recent">近代 (1840-1949)</option>
-                  <option value="modern">现代 (1949至今)</option>
-                </select>
+              <Field label="时代 (根据年份自动判定)">
+                <Input value={`${ERAS[eraFromYear(editing.year)].label} (${ERAS[eraFromYear(editing.year)].range})`} disabled />
               </Field>
               <Field label="出处"><Input value={editing.source} onChange={e => setEditing({ ...editing, source: e.target.value })} /></Field>
 
