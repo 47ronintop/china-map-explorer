@@ -185,7 +185,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               <label className="text-sm text-muted-foreground tracking-widest">猜测年份</label>
               <span className="text-xl font-bold ink-text">{formatYear(guessYear)}</span>
             </div>
-            <YearScale value={guessYear} min={-1000} max={2024} onChange={setGuessYear} />
+            <YearScale value={guessYear} min={-2100} max={2025} onChange={setGuessYear} />
           </div>
         )}
 
