@@ -7,8 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Upload, Trash2, Plus, LogOut, Save } from 'lucide-react';
 
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'tony95';
 const AUTH_KEY = 'hx_admin_auth';
 
 interface SceneRow {
@@ -49,9 +47,16 @@ export default function Admin() {
     else setScenes((data ?? []) as SceneRow[]);
   }
 
-  function login(e: React.FormEvent) {
+  async function login(e: React.FormEvent) {
     e.preventDefault();
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
+    const { data, error } = await supabase
+      .from('admin_credentials')
+      .select('id')
+      .eq('username', u)
+      .eq('password', p)
+      .maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    if (data) {
       sessionStorage.setItem(AUTH_KEY, '1');
       setAuthed(true);
     } else {
