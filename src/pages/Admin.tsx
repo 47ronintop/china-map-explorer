@@ -7,8 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Upload, Trash2, Plus, LogOut, Save } from 'lucide-react';
 
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'tony95';
 const AUTH_KEY = 'hx_admin_auth';
 
 interface SceneRow {
