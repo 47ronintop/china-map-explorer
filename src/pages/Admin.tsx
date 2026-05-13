@@ -180,10 +180,9 @@ export default function Admin() {
               <Field label="纬度 (lat)"><Input type="number" step="0.001" value={editing.lat} onChange={e => setEditing({ ...editing, lat: +e.target.value })} /></Field>
               <Field label="时代">
                 <select className="w-full h-10 rounded-md border border-input bg-background px-3" value={editing.era} onChange={e => setEditing({ ...editing, era: e.target.value })}>
-                  <option value="ancient">秦汉及更早</option>
-                  <option value="tang-song">唐宋</option>
-                  <option value="ming-qing">明清</option>
-                  <option value="modern">现代</option>
+                  <option value="ancient">古代 (先秦-1840)</option>
+                  <option value="recent">近代 (1840-1949)</option>
+                  <option value="modern">现代 (1949至今)</option>
                 </select>
               </Field>
               <Field label="出处"><Input value={editing.source} onChange={e => setEditing({ ...editing, source: e.target.value })} /></Field>
