@@ -185,7 +185,7 @@ export default function Game({ eraFilter, onFinish, onExit }: GameProps) {
               <label className="text-sm text-muted-foreground tracking-widest">猜测年份</label>
               <span className="text-xl font-bold ink-text">{formatYear(guessYear)}</span>
             </div>
-            <YearScale value={guessYear} min={-1000} max={2024} onChange={setGuessYear} />
+            <YearScale value={guessYear} min={-2100} max={2025} onChange={setGuessYear} />
           </div>
         )}
 
@@ -422,11 +422,23 @@ function YearScale({
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
-  // 主刻度年份
-  const majors = [-1000, -500, 0, 500, 1000, 1500, 1840, 1949, 2024];
-  // 次刻度
+  // 朝代/时代主刻度（参考 wen-ware.com 简洁的时间轴标注，仅显示朝代节点而非密集年份）
+  const majors: { y: number; label: string }[] = [
+    { y: -2070, label: '夏' },
+    { y: -1600, label: '商' },
+    { y: -1046, label: '周' },
+    { y: -221, label: '秦' },
+    { y: 202, label: '汉' },
+    { y: 618, label: '唐' },
+    { y: 960, label: '宋' },
+    { y: 1368, label: '明' },
+    { y: 1644, label: '清' },
+    { y: 1840, label: '近代' },
+    { y: 1949, label: '现代' },
+  ];
+  // 次刻度：每 200 年一格
   const minors: number[] = [];
-  for (let y = -1000; y <= 2024; y += 100) minors.push(y);
+  for (let y = Math.ceil(min / 200) * 200; y <= max; y += 200) minors.push(y);
 
   const pctOf = (y: number) => ((y - min) / (max - min)) * 100;
 
@@ -439,10 +451,10 @@ function YearScale({
   };
 
   return (
-    <div className="select-none">
+    <div className="select-none px-6">
       <div
         ref={trackRef}
-        className="relative h-12 cursor-pointer touch-none"
+        className="relative h-14 cursor-pointer touch-none"
         onPointerDown={(e) => {
           draggingRef.current = true;
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -459,7 +471,7 @@ function YearScale({
         {/* 基线 */}
         <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
 
-        {/* 已选中区域(从起点到指针) */}
+        {/* 已选中区域 */}
         <div
           className="absolute top-1/2 h-px bg-primary/70"
           style={{ left: 0, width: `${pctOf(value)}%` }}
@@ -470,31 +482,45 @@ function YearScale({
           <div
             key={`mn-${y}`}
             className="absolute top-1/2 -translate-y-1/2 w-px bg-border"
-            style={{ left: `${pctOf(y)}%`, height: 6 }}
+            style={{ left: `${pctOf(y)}%`, height: 5 }}
           />
         ))}
 
-        {/* 主刻度 + 标签 */}
-        {majors.map((y) => (
-          <div
-            key={`mj-${y}`}
-            className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center"
-            style={{ left: `${pctOf(y)}%`, transform: `translate(-50%, -50%)` }}
-          >
-            <div className="w-px h-3 bg-muted-foreground/70" />
-            <span className="text-[10px] text-muted-foreground mt-1 tabular-nums whitespace-nowrap">
-              {y < 0 ? `前${-y}` : y}
-            </span>
-          </div>
-        ))}
+        {/* 主刻度（朝代） */}
+        {majors.map((m) => {
+          const p = pctOf(m.y);
+          // 边缘标签做对齐处理避免溢出
+          const align = p < 4 ? 'flex-start' : p > 96 ? 'flex-end' : 'center';
+          const tx = p < 4 ? '0' : p > 96 ? '-100%' : '-50%';
+          return (
+            <div
+              key={`mj-${m.label}`}
+              className="absolute top-1/2 -translate-y-1/2 flex flex-col"
+              style={{ left: `${p}%`, alignItems: align }}
+            >
+              <div className="w-px h-3 bg-muted-foreground/70 self-center" />
+              <span
+                className="text-[10px] text-muted-foreground mt-1 tabular-nums whitespace-nowrap"
+                style={{ transform: `translateX(${tx})` }}
+              >
+                {m.label}
+              </span>
+            </div>
+          );
+        })}
 
-        {/* 指针 */}
+        {/* 指针 + 浮动当前值标签 */}
         <div
-          className="absolute top-0 bottom-0 flex flex-col items-center pointer-events-none"
-          style={{ left: `${pctOf(value)}%`, transform: 'translateX(-50%)' }}
+          className="absolute top-0 bottom-0 pointer-events-none"
+          style={{ left: `${pctOf(value)}%` }}
         >
-          <div className="w-0.5 flex-1 bg-primary" />
-          <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-2 border-card shadow" />
+          <div
+            className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px] font-bold tabular-nums whitespace-nowrap shadow"
+          >
+            {value < 0 ? `前${-value}` : value}
+          </div>
+          <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-0.5 h-8 bg-primary" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-2 border-card shadow" />
         </div>
       </div>
     </div>
