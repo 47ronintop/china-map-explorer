@@ -181,7 +181,7 @@ export default function Admin() {
               <Field label="标题" full><Input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} /></Field>
               <Field label="描述" full><Textarea rows={2} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} /></Field>
               <Field label="地点名"><Input value={editing.location_name} onChange={e => setEditing({ ...editing, location_name: e.target.value })} /></Field>
-              <Field label="年份 (BCE 用负数)"><Input type="number" value={editing.year} onChange={e => { const y = +e.target.value; setEditing({ ...editing, year: y, era: eraFromYear(y) }); }} /></Field>
+              <Field label={`年份 (-3000 ~ ${new Date().getFullYear()}，公元前用负数，无 0 年)`}><Input type="number" step="1" min={-3000} max={new Date().getFullYear()} value={editing.year} onChange={e => { const y = parseInt(e.target.value, 10); setEditing({ ...editing, year: Number.isNaN(y) ? 0 : y, era: eraFromYear(Number.isNaN(y) ? 0 : y) }); }} /></Field>
               <Field label="经度 (lng)"><Input type="number" step="0.001" value={editing.lng} onChange={e => setEditing({ ...editing, lng: +e.target.value })} /></Field>
               <Field label="纬度 (lat)"><Input type="number" step="0.001" value={editing.lat} onChange={e => setEditing({ ...editing, lat: +e.target.value })} /></Field>
               <Field label="时代 (根据年份自动判定)">
