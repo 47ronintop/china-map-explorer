@@ -81,7 +81,7 @@ export default function Admin() {
       toast.error('ID、标题、场景图必填'); return;
     }
     setLoading(true);
-    const { error } = await supabase.from('scenes').upsert(editing);
+    const { error } = await supabase.from('scenes').upsert({ ...editing, era: eraFromYear(editing.year) });
     setLoading(false);
     if (error) toast.error(error.message);
     else { toast.success('已保存'); setEditing(null); refresh(); }
