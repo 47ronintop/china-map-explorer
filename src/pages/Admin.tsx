@@ -47,9 +47,16 @@ export default function Admin() {
     else setScenes((data ?? []) as SceneRow[]);
   }
 
-  function login(e: React.FormEvent) {
+  async function login(e: React.FormEvent) {
     e.preventDefault();
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
+    const { data, error } = await supabase
+      .from('admin_credentials')
+      .select('id')
+      .eq('username', u)
+      .eq('password', p)
+      .maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    if (data) {
       sessionStorage.setItem(AUTH_KEY, '1');
       setAuthed(true);
     } else {
