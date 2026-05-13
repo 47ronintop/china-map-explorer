@@ -80,8 +80,13 @@ export default function Admin() {
     if (!editing.id || !editing.title || !editing.image_url) {
       toast.error('ID、标题、场景图必填'); return;
     }
+    const y = editing.year;
+    const currentYear = new Date().getFullYear();
+    if (!Number.isInteger(y)) { toast.error('年份必须是整数（公元前用负数，如 -210）'); return; }
+    if (y === 0) { toast.error('年份不能为 0（公元前 1 年用 -1，公元 1 年用 1）'); return; }
+    if (y < -3000 || y > currentYear) { toast.error(`年份必须在 -3000 至 ${currentYear} 之间`); return; }
     setLoading(true);
-    const { error } = await supabase.from('scenes').upsert({ ...editing, era: eraFromYear(editing.year) });
+    const { error } = await supabase.from('scenes').upsert({ ...editing, era: eraFromYear(y) });
     setLoading(false);
     if (error) toast.error(error.message);
     else { toast.success('已保存'); setEditing(null); refresh(); }
