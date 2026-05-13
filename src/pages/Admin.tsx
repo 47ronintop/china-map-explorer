@@ -26,7 +26,7 @@ interface SceneRow {
 
 const EMPTY: SceneRow = {
   id: '', title: '', description: '', image_url: '', panorama_url: null,
-  lng: 116, lat: 39, location_name: '', year: 1000, era: 'tang-song',
+  lng: 116, lat: 39, location_name: '', year: 1000, era: 'ancient',
   source: '', sort_order: 0,
 };
 
