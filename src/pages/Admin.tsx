@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Upload, Trash2, Plus, LogOut, Save } from 'lucide-react';
+import { eraFromYear, ERAS } from '@/data/scenes';
 
 const AUTH_KEY = 'hx_admin_auth';
 
