@@ -423,7 +423,7 @@ function YearScale({
   const draggingRef = useRef(false);
   const lastXRef = useRef(0);
   const accRef = useRef(0); // 累积亚像素偏移
-  const PX_PER_YEAR = 3;
+  const PX_PER_YEAR = 1.8;
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
 
@@ -450,7 +450,7 @@ function YearScale({
   };
 
   // 仅渲染当前可视范围附近的刻度，避免一次渲染数千个 DOM 节点
-  const VIEW_YEARS = 260; // 前后各 260 年（共 520 年的刻度可见即可）
+  const VIEW_YEARS = 320; // 前后各 320 年，确保 500 年范围刻度都渲染
   const startY = Math.max(min, Math.floor((value - VIEW_YEARS) / 10) * 10);
   const endY = Math.min(max, Math.ceil((value + VIEW_YEARS) / 10) * 10);
   const ticks: number[] = [];
