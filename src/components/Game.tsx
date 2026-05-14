@@ -461,7 +461,7 @@ function YearScale({
 
   return (
     <div className="select-none px-6">
-      <div className="relative h-20 pt-6">
+      <div className="relative h-24 pt-6">
         {/* 顶部当前值气泡 */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold tabular-nums whitespace-nowrap shadow-md z-30 pointer-events-none">
           {fmtBubble(value)}
@@ -482,7 +482,7 @@ function YearScale({
         {/* 可拖拽的刻度条 */}
         <div
           ref={containerRef}
-          className="absolute inset-x-0 top-8 h-9 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
+          className="absolute inset-x-0 top-8 h-8 overflow-x-hidden overflow-y-visible cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -515,7 +515,7 @@ function YearScale({
                   />
                   {isMajor && (
                     <span
-                      className="absolute left-1/2 -translate-x-1/2 bottom-0.5 text-[9px] text-muted-foreground tabular-nums whitespace-nowrap"
+                      className="absolute left-1/2 top-full mt-2 text-[9px] leading-none text-muted-foreground tabular-nums whitespace-nowrap pointer-events-none"
                       style={{ writingMode: 'vertical-rl', transform: 'translateX(-50%) rotate(180deg)' }}
                     >
                       {fmt(y)}
