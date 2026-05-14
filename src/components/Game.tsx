@@ -461,7 +461,7 @@ function YearScale({
 
   return (
     <div className="select-none px-6">
-      <div className="relative h-20 pt-6">
+      <div className="relative h-28 pt-6">
         {/* 顶部当前值气泡 */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold tabular-nums whitespace-nowrap shadow-md z-30 pointer-events-none">
           {fmtBubble(value)}
@@ -482,7 +482,7 @@ function YearScale({
         {/* 可拖拽的刻度条 */}
         <div
           ref={containerRef}
-          className="absolute inset-x-0 top-8 h-9 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
+          className="absolute inset-x-0 top-8 h-8 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -513,17 +513,30 @@ function YearScale({
                       isMajor ? 'bg-foreground/70 h-5' : isMid ? 'bg-foreground/40 h-3.5' : 'bg-foreground/25 h-2'
                     }`}
                   />
-                  {isMajor && (
-                    <span
-                      className="absolute left-1/2 -translate-x-1/2 bottom-0.5 text-[9px] text-muted-foreground tabular-nums whitespace-nowrap"
-                      style={{ writingMode: 'vertical-rl', transform: 'translateX(-50%) rotate(180deg)' }}
-                    >
-                      {fmt(y)}
-                    </span>
-                  )}
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* 年份数字独立放在刻度条下方，避免被刻度线遮挡 */}
+        <div className="absolute inset-x-0 top-[4.65rem] h-7 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-0 h-full"
+            style={{
+              left: '50%',
+              transform: `translateX(${-(value - startY) * PX_PER_YEAR}px)`,
+            }}
+          >
+            {ticks.filter((y) => y % 100 === 0).map((y) => (
+              <span
+                key={`label-${y}`}
+                className="absolute left-1/2 -translate-x-1/2 text-[10px] leading-none text-muted-foreground tabular-nums whitespace-nowrap"
+                style={{ left: (y - startY) * PX_PER_YEAR }}
+              >
+                {fmt(y)}
+              </span>
+            ))}
           </div>
         </div>
       </div>
