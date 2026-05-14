@@ -407,7 +407,7 @@ function CircularTimer({ value, max }: { value: number; max: number }) {
   );
 }
 
-// 年份刻度尺(参考 wen-ware.com 的时间轴风格)
+// 年份刻度尺（参考 wen-ware.com：固定中心指针 + 可拖拽的刻度条）
 function YearScale({
   value,
   min,
@@ -419,108 +419,112 @@ function YearScale({
   max: number;
   onChange: (v: number) => void;
 }) {
-  const trackRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const lastXRef = useRef(0);
+  const accRef = useRef(0); // 累积亚像素偏移
+  const PX_PER_YEAR = 3;
 
-  // 朝代/时代主刻度（参考 wen-ware.com 简洁的时间轴标注，仅显示朝代节点而非密集年份）
-  const majors: { y: number; label: string }[] = [
-    { y: -2070, label: '夏' },
-    { y: -1600, label: '商' },
-    { y: -1046, label: '周' },
-    { y: -221, label: '秦' },
-    { y: 202, label: '汉' },
-    { y: 618, label: '唐' },
-    { y: 960, label: '宋' },
-    { y: 1368, label: '明' },
-    { y: 1644, label: '清' },
-    { y: 1840, label: '近代' },
-    { y: 1949, label: '现代' },
-  ];
-  // 次刻度：每 200 年一格
-  const minors: number[] = [];
-  for (let y = Math.ceil(min / 200) * 200; y <= max; y += 200) minors.push(y);
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
 
-  const pctOf = (y: number) => ((y - min) / (max - min)) * 100;
-
-  const setFromClientX = (clientX: number) => {
-    const el = trackRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    onChange(Math.round(min + ratio * (max - min)));
+  const onPointerDown = (e: React.PointerEvent) => {
+    draggingRef.current = true;
+    lastXRef.current = e.clientX;
+    accRef.current = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    const dx = e.clientX - lastXRef.current;
+    lastXRef.current = e.clientX;
+    accRef.current += dx / PX_PER_YEAR;
+    const dyear = Math.trunc(accRef.current);
+    if (dyear !== 0) {
+      accRef.current -= dyear;
+      onChange(clamp(value - dyear));
+    }
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    draggingRef.current = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  };
+
+  // 仅渲染当前可视范围附近的刻度，避免一次渲染数千个 DOM 节点
+  const VIEW_YEARS = 260; // 前后各 260 年（共 520 年的刻度可见即可）
+  const startY = Math.max(min, Math.floor((value - VIEW_YEARS) / 10) * 10);
+  const endY = Math.min(max, Math.ceil((value + VIEW_YEARS) / 10) * 10);
+  const ticks: number[] = [];
+  for (let y = startY; y <= endY; y += 10) ticks.push(y);
+
+  const fmt = (y: number) => (y < 0 ? `${y}` : `${y}`);
+  const fmtBubble = (y: number) => (y < 0 ? `公元前 ${-y}` : `公元 ${y}`);
 
   return (
     <div className="select-none px-6">
-      <div
-        ref={trackRef}
-        className="relative h-14 cursor-pointer touch-none"
-        onPointerDown={(e) => {
-          draggingRef.current = true;
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          setFromClientX(e.clientX);
-        }}
-        onPointerMove={(e) => {
-          if (draggingRef.current) setFromClientX(e.clientX);
-        }}
-        onPointerUp={(e) => {
-          draggingRef.current = false;
-          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-        }}
-      >
-        {/* 基线 */}
-        <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
+      <div className="relative h-16">
+        {/* 顶部当前值气泡 */}
+        <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px] font-bold tabular-nums whitespace-nowrap shadow z-20 pointer-events-none">
+          {fmtBubble(value)}
+        </div>
 
-        {/* 已选中区域 */}
-        <div
-          className="absolute top-1/2 h-px bg-primary/70"
-          style={{ left: 0, width: `${pctOf(value)}%` }}
-        />
-
-        {/* 次刻度 */}
-        {minors.map((y) => (
+        {/* 中心三角指针 */}
+        <div className="absolute left-1/2 top-6 -translate-x-1/2 z-10 pointer-events-none">
           <div
-            key={`mn-${y}`}
-            className="absolute top-1/2 -translate-y-1/2 w-px bg-border"
-            style={{ left: `${pctOf(y)}%`, height: 5 }}
+            className="w-0 h-0"
+            style={{
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '8px solid hsl(var(--primary))',
+            }}
           />
-        ))}
+        </div>
 
-        {/* 主刻度（朝代） */}
-        {majors.map((m) => {
-          const p = pctOf(m.y);
-          // 边缘标签做对齐处理避免溢出
-          const align = p < 4 ? 'flex-start' : p > 96 ? 'flex-end' : 'center';
-          const tx = p < 4 ? '0' : p > 96 ? '-100%' : '-50%';
-          return (
-            <div
-              key={`mj-${m.label}`}
-              className="absolute top-1/2 -translate-y-1/2 flex flex-col"
-              style={{ left: `${p}%`, alignItems: align }}
-            >
-              <div className="w-px h-3 bg-muted-foreground/70 self-center" />
-              <span
-                className="text-[10px] text-muted-foreground mt-1 tabular-nums whitespace-nowrap"
-                style={{ transform: `translateX(${tx})` }}
-              >
-                {m.label}
-              </span>
-            </div>
-          );
-        })}
-
-        {/* 指针 + 浮动当前值标签 */}
+        {/* 可拖拽的刻度条 */}
         <div
-          className="absolute top-0 bottom-0 pointer-events-none"
-          style={{ left: `${pctOf(value)}%` }}
+          ref={containerRef}
+          className="absolute inset-x-0 top-7 h-9 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
+          {/* 基线 */}
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
+
+          {/* 刻度内容：使用 translate 让 value 对齐到容器中心(50%) */}
           <div
-            className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px] font-bold tabular-nums whitespace-nowrap shadow"
+            className="absolute top-0 bottom-0"
+            style={{
+              left: '50%',
+              transform: `translateX(${-(value - startY) * PX_PER_YEAR}px)`,
+            }}
           >
-            {value < 0 ? `前${-value}` : value}
+            {ticks.map((y) => {
+              const isMajor = y % 100 === 0;
+              const isMid = !isMajor && y % 50 === 0;
+              return (
+                <div
+                  key={y}
+                  className="absolute top-0 bottom-0"
+                  style={{ left: (y - startY) * PX_PER_YEAR }}
+                >
+                  <div
+                    className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-px ${
+                      isMajor ? 'bg-foreground/70 h-5' : isMid ? 'bg-foreground/40 h-3.5' : 'bg-foreground/25 h-2'
+                    }`}
+                  />
+                  {isMajor && (
+                    <span
+                      className="absolute left-1/2 -translate-x-1/2 bottom-0.5 text-[9px] text-muted-foreground tabular-nums whitespace-nowrap"
+                      style={{ writingMode: 'vertical-rl', transform: 'translateX(-50%) rotate(180deg)' }}
+                    >
+                      {fmt(y)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-0.5 h-8 bg-primary" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary border-2 border-card shadow" />
         </div>
       </div>
     </div>
