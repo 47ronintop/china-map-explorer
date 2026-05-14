@@ -461,14 +461,14 @@ function YearScale({
 
   return (
     <div className="select-none px-6">
-      <div className="relative h-16">
+      <div className="relative h-20 pt-6">
         {/* 顶部当前值气泡 */}
-        <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px] font-bold tabular-nums whitespace-nowrap shadow z-20 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold tabular-nums whitespace-nowrap shadow-md z-30 pointer-events-none">
           {fmtBubble(value)}
         </div>
 
         {/* 中心三角指针 */}
-        <div className="absolute left-1/2 top-6 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="absolute left-1/2 top-7 -translate-x-1/2 z-10 pointer-events-none">
           <div
             className="w-0 h-0"
             style={{
@@ -482,7 +482,7 @@ function YearScale({
         {/* 可拖拽的刻度条 */}
         <div
           ref={containerRef}
-          className="absolute inset-x-0 top-7 h-9 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
+          className="absolute inset-x-0 top-8 h-9 overflow-hidden cursor-ew-resize touch-none rounded bg-muted/40 backdrop-blur-sm"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
